@@ -1,0 +1,26 @@
+CREATE TABLE plaid_items (
+    id BIGSERIAL PRIMARY KEY,
+    access_token TEXT NOT NULL,
+    cursor TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE spending_allocations (
+    id BIGSERIAL PRIMARY KEY,
+    amount NUMERIC(12, 2) NOT NULL,
+    start_date DATE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE plaid_transactions (
+    id BIGSERIAL PRIMARY KEY,
+    plaid_transaction_id VARCHAR(255) NOT NULL UNIQUE,
+    merchant VARCHAR(255),
+    amount NUMERIC(12, 2) NOT NULL,
+    transaction_date DATE NOT NULL,
+    pending BOOLEAN NOT NULL DEFAULT FALSE,
+    category VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
