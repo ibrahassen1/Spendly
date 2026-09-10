@@ -7,9 +7,15 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+    open-in-view: false
 
   flyway:
     enabled: true
 
 server:
   port: 8080
+
+plaid:
+  client-id: ${PLAID_CLIENT_ID}
+  secret: ${PLAID_SECRET}
+  environment: production
