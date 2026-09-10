@@ -1,123 +1,108 @@
-import { useCallback, useEffect, useState } from "react";
-import { usePlaidLink } from "react-plaid-link";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 function App() {
-  const [linkToken, setLinkToken] = useState(null);
   const [message, setMessage] = useState("");
   const [safeToSpend, setSafeToSpend] = useState(null);
+  const [recentUpdates, setRecentUpdates] = useState([]);
+  const [totalReduced, setTotalReduced] = useState(0);
+  const [updateStatus, setUpdateStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
   const fetchSafeToSpend = async () => {
-    try {
-      const response = await fetch(
-        "http://localhost:8080/api/safe-to-spend"
-      );
+    const response = await fetch(
+      "http://localhost:8080/api/safe-to-spend"
+    );
 
-      if (!response.ok) {
-        setSafeToSpend(null);
-        return;
-      }
+    if (!response.ok) {
+      throw new Error("Could not load Safe to Spend.");
+    }
 
-      const data = await response.json();
-      setSafeToSpend(data);
-    } catch (error) {
-      setMessage("Could not load Safe to Spend.");
+    const data = await response.json();
+    setSafeToSpend(data);
+  };
+
+  const fetchRecentTransactions = async () => {
+    const response = await fetch(
+      "http://localhost:8080/api/gmail/recent"
+    );
+
+    if (!response.ok) {
+      throw new Error("Could not load recent transactions.");
+    }
+
+    const data = await response.json();
+
+    setRecentUpdates(data);
+
+    const recentTotal = data.reduce(
+      (sum, transaction) =>
+        sum + Number(transaction.amount),
+      0
+    );
+
+    setTotalReduced(recentTotal);
+
+    if (data.length > 0) {
+      setUpdateStatus("Up to date ✓");
     }
   };
 
   useEffect(() => {
-    const createLinkToken = async () => {
-      try {
-        const response = await fetch(
-          "http://localhost:8080/api/plaid/link-token",
-          {
-            method: "POST",
-          }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to create link token");
-        }
-
-        setLinkToken(data.link_token);
-      } catch (error) {
-        setMessage(error.message);
-      }
-    };
-
-    createLinkToken();
-    fetchSafeToSpend();
-  }, []);
-
-  const onSuccess = useCallback(async (publicToken) => {
-    try {
-      setMessage("Connecting account...");
-
-      const response = await fetch(
-        "http://localhost:8080/api/plaid/exchange-token",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            public_token: publicToken,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to connect account");
-      }
-
-      setMessage("Bank account connected successfully.");
-    } catch (error) {
-      setMessage(error.message);
-    }
+    Promise.all([
+      fetchSafeToSpend(),
+      fetchRecentTransactions(),
+    ]).catch(() => {
+      setMessage("Could not load Spendly data.");
+    });
   }, []);
 
   const handleRefresh = async () => {
     try {
       setLoading(true);
-      setMessage("Refreshing transactions...");
+      setMessage("Checking for new purchases...");
 
-      await fetch(
-        "http://localhost:8080/api/plaid/refresh",
+      const gmailResponse = await fetch(
+        "http://localhost:8080/api/gmail/refresh",
         {
           method: "POST",
         }
       );
 
-      const syncResponse = await fetch(
-        "http://localhost:8080/api/plaid/sync",
-        {
-          method: "POST",
-        }
-      );
-
-      if (!syncResponse.ok) {
-        throw new Error("Transaction sync failed");
+      if (!gmailResponse.ok) {
+        throw new Error("Could not check Gmail.");
       }
+
+      const refreshData = await gmailResponse.json();
 
       await fetchSafeToSpend();
 
-      setMessage("Transactions refreshed.");
+      if (refreshData.newTransactionCount > 0) {
+        setRecentUpdates(
+          refreshData.newTransactions || []
+        );
+
+        setTotalReduced(
+          Number(refreshData.totalReduced || 0)
+        );
+
+        setUpdateStatus("Updated just now");
+
+        setMessage(
+          `${refreshData.newTransactionCount} new transaction${
+            refreshData.newTransactionCount === 1 ? "" : "s"
+          } added.`
+        );
+      } else {
+        setUpdateStatus("Up to date ✓");
+        setMessage("No new purchases found.");
+      }
     } catch (error) {
       setMessage(error.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const { open, ready } = usePlaidLink({
-    token: linkToken,
-    onSuccess,
-  });
 
   return (
     <main className="app">
@@ -141,27 +126,38 @@ function App() {
                   : "amount"
               }
             >
-              ${Number(safeToSpend.safeToSpend).toFixed(2)}
+              $
+              {Number(
+                safeToSpend.safeToSpend
+              ).toFixed(2)}
             </h2>
 
             <div className="details">
               <p>
                 Allocation:
                 <strong>
-                  ${Number(safeToSpend.allocation).toFixed(2)}
+                  $
+                  {Number(
+                    safeToSpend.allocation
+                  ).toFixed(2)}
                 </strong>
               </p>
 
               <p>
                 Counted Spending:
                 <strong>
-                  ${Number(safeToSpend.countedSpending).toFixed(2)}
+                  $
+                  {Number(
+                    safeToSpend.countedSpending
+                  ).toFixed(2)}
                 </strong>
               </p>
 
               <p>
                 Since:
-                <strong>{safeToSpend.startDate}</strong>
+                <strong>
+                  {safeToSpend.startDate}
+                </strong>
               </p>
             </div>
           </section>
@@ -173,21 +169,68 @@ function App() {
             disabled={loading}
           >
             {loading
-              ? "Refreshing..."
+              ? "Checking..."
               : "Refresh Transactions"}
-          </button>
-
-          <button
-            className="secondary"
-            onClick={() => open()}
-            disabled={!ready || !linkToken}
-          >
-            Connect Bank Account
           </button>
         </div>
 
         {message && (
-          <p className="message">{message}</p>
+          <p className="message">
+            {message}
+          </p>
+        )}
+
+        {recentUpdates.length > 0 && (
+          <section className="recent-updates">
+            <div className="recent-header">
+              <h2>Recent Updates</h2>
+
+              {updateStatus && (
+                <p className="update-status">
+                  {updateStatus}
+                </p>
+              )}
+            </div>
+
+            {recentUpdates.map(
+              (transaction, index) => (
+                <div
+                  className="transaction-row"
+                  key={`${transaction.merchant}-${transaction.amount}-${index}`}
+                >
+                  <div>
+                    <p className="merchant">
+                      {transaction.merchant}
+                    </p>
+
+                    <p className="transaction-meta">
+                      Card ••••{" "}
+                      {transaction.cardLast4}
+                      {" · "}
+                      {transaction.date}
+                    </p>
+                  </div>
+
+                  <strong className="transaction-amount">
+                    -$
+                    {Number(
+                      transaction.amount
+                    ).toFixed(2)}
+                  </strong>
+                </div>
+              )
+            )}
+
+            <div className="refresh-total">
+              <span>
+                Recent total
+              </span>
+
+              <strong>
+                -${totalReduced.toFixed(2)}
+              </strong>
+            </div>
+          </section>
         )}
       </div>
     </main>
