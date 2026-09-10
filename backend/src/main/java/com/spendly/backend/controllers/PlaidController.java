@@ -1,10 +1,12 @@
 package com.spendly.backend.controllers;
 
+import com.spendly.backend.models.PlaidTransaction;
 import com.spendly.backend.services.PlaidService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -46,6 +48,41 @@ public class PlaidController {
 
         return ResponseEntity.ok(
                 Map.of("message", "Plaid account connected successfully")
+        );
+    }
+
+    @PostMapping("/sync")
+    public ResponseEntity<Map<String, Object>> syncTransactions()
+            throws IOException {
+
+        int changesProcessed = plaidService.syncTransactions();
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "message", "Transactions synced successfully",
+                        "changes_processed", changesProcessed
+                )
+        );
+    }
+
+    @GetMapping("/transactions")
+    public ResponseEntity<List<PlaidTransaction>> getTransactions() {
+        return ResponseEntity.ok(
+                plaidService.getTransactions()
+        );
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<Map<String, String>> refreshTransactions()
+            throws IOException {
+
+        plaidService.refreshTransactions();
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "message",
+                        "Plaid transaction refresh requested successfully"
+                )
         );
     }
 }
