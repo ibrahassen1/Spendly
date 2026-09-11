@@ -16,7 +16,10 @@ function App() {
     new Date().toLocaleDateString("en-CA")
   );
   const [savingBudget, setSavingBudget] = useState(false);
-  const [showBudgetForm, setShowBudgetForm] = useState(false);
+  const [budgetMode, setBudgetMode] = useState(null);
+
+  const [addAmount, setAddAmount] = useState("");
+  const [addingMoney, setAddingMoney] = useState(false);
 
   const formatMoney = (amount) =>
     Number(amount || 0).toFixed(2);
@@ -55,6 +58,7 @@ function App() {
     }
 
     const data = await response.json();
+
     setSafeToSpend(data);
     setBudgetStartDate(data.startDate);
 
@@ -73,6 +77,7 @@ function App() {
     const data = await response.json();
 
     setTransactions(data);
+
     return data;
   };
 
@@ -90,6 +95,30 @@ function App() {
     loadDashboard();
   }, []);
 
+  const openEditBudget = () => {
+    if (safeToSpend) {
+      setBudgetAmount(
+        Number(safeToSpend.allocation).toFixed(2)
+      );
+      setBudgetStartDate(safeToSpend.startDate);
+    }
+
+    setBudgetMode("edit");
+    setMessage("");
+  };
+
+  const openAddMoney = () => {
+    setAddAmount("");
+    setBudgetMode("add");
+    setMessage("");
+  };
+
+  const closeBudgetPanel = () => {
+    setBudgetMode(null);
+    setBudgetAmount("");
+    setAddAmount("");
+  };
+
   const handleSetBudget = async (event) => {
     event.preventDefault();
 
@@ -100,12 +129,11 @@ function App() {
       const amount = Number(budgetAmount);
 
       if (
-        !budgetAmount ||
-        Number.isNaN(amount) ||
-        amount < 0
+        budgetAmount === "" ||
+        Number.isNaN(amount)
       ) {
         throw new Error(
-          "Enter a valid spendable amount."
+          "Enter a valid budget amount."
         );
       }
 
@@ -137,12 +165,75 @@ function App() {
       await fetchTransactions();
 
       setBudgetAmount("");
-      setShowBudgetForm(false);
+      setBudgetMode(null);
       setMessage("Budget updated ✓");
     } catch (error) {
       setMessage(error.message);
     } finally {
       setSavingBudget(false);
+    }
+  };
+
+  const handleAddMoney = async (event) => {
+    event.preventDefault();
+
+    try {
+      setAddingMoney(true);
+      setMessage("Adding money...");
+
+      const amountToAdd = Number(addAmount);
+
+      if (
+        addAmount === "" ||
+        Number.isNaN(amountToAdd) ||
+        amountToAdd <= 0
+      ) {
+        throw new Error(
+          "Enter an amount greater than $0."
+        );
+      }
+
+      if (!safeToSpend) {
+        throw new Error(
+          "Set a budget before adding money."
+        );
+      }
+
+      const newBudget =
+        Number(safeToSpend.allocation) +
+        amountToAdd;
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/safe-to-spend/allocation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: newBudget,
+            startDate: safeToSpend.startDate,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Could not add money.");
+      }
+
+      const data = await response.json();
+
+      setSafeToSpend(data);
+      setAddAmount("");
+      setBudgetMode(null);
+
+      setMessage(
+        `$${formatMoney(amountToAdd)} added to your budget ✓`
+      );
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setAddingMoney(false);
     }
   };
 
@@ -203,40 +294,56 @@ function App() {
           <>
             <section className="safe-card">
               <div className="safe-top">
-                <p className="label">SAFE TO SPEND</p>
+                <p className="label">
+                  SAFE TO SPEND
+                </p>
 
                 <span className="period">
-                  Since {formatDate(safeToSpend.startDate)}
+                  Since{" "}
+                  {formatDate(
+                    safeToSpend.startDate
+                  )}
                 </span>
               </div>
 
               <h2
                 className={
-                  Number(safeToSpend.safeToSpend) < 0
+                  Number(
+                    safeToSpend.safeToSpend
+                  ) < 0
                     ? "amount negative"
                     : "amount"
                 }
               >
-                ${formatMoney(safeToSpend.safeToSpend)}
+                $
+                {formatMoney(
+                  safeToSpend.safeToSpend
+                )}
               </h2>
 
               <p className="safe-subtitle">
-                Available without touching the rest of your
-                money.
+                Available without touching the rest of
+                your money.
               </p>
 
               <div className="stats">
                 <div className="stat">
                   <span>Budget</span>
+
                   <strong>
-                    ${formatMoney(safeToSpend.allocation)}
+                    $
+                    {formatMoney(
+                      safeToSpend.allocation
+                    )}
                   </strong>
                 </div>
 
                 <div className="stat">
                   <span>Spent</span>
+
                   <strong>
-                    ${formatMoney(
+                    $
+                    {formatMoney(
                       safeToSpend.countedSpending
                     )}
                   </strong>
@@ -250,7 +357,11 @@ function App() {
                 onClick={handleRefresh}
                 disabled={loading}
               >
-                <span className={loading ? "spin" : ""}>
+                <span
+                  className={
+                    loading ? "spin" : ""
+                  }
+                >
                   ↻
                 </span>
 
@@ -261,44 +372,57 @@ function App() {
 
               <button
                 className="edit-button"
-                onClick={() =>
-                  setShowBudgetForm(!showBudgetForm)
-                }
+                onClick={openAddMoney}
               >
-                {showBudgetForm
-                  ? "Close"
-                  : "Edit Budget"}
+                + Add Money
+              </button>
+
+              <button
+                className="edit-button"
+                onClick={openEditBudget}
+              >
+                Edit Budget
               </button>
             </section>
           </>
         ) : (
           <section className="empty-hero">
-            <p className="label">SAFE TO SPEND</p>
+            <p className="label">
+              SAFE TO SPEND
+            </p>
+
             <h2>$0.00</h2>
+
             <p>
-              Set how much you can spend and when this
-              budget started.
+              Set how much you can spend and when
+              this budget started.
             </p>
 
             <button
-              onClick={() => setShowBudgetForm(true)}
+              onClick={() =>
+                setBudgetMode("edit")
+              }
             >
               Set Budget
             </button>
           </section>
         )}
 
-        {(showBudgetForm || !safeToSpend) && (
+        {(budgetMode === "edit" ||
+          !safeToSpend) && (
           <form
             className="budget-card"
             onSubmit={handleSetBudget}
           >
             <div className="section-heading">
               <div>
-                <p className="eyebrow">BUDGET & DATA</p>
+                <p className="eyebrow">
+                  BUDGET & DATA
+                </p>
+
                 <h2>
                   {safeToSpend
-                    ? "Update budget"
+                    ? "Set budget"
                     : "Set your budget"}
                 </h2>
               </div>
@@ -306,23 +430,19 @@ function App() {
 
             <label>
               Spendable amount
+
               <div className="money-input">
                 <span>$</span>
 
                 <input
                   type="number"
-                  min="0"
                   step="0.01"
-                  placeholder={
-                    safeToSpend
-                      ? formatMoney(
-                          safeToSpend.allocation
-                        )
-                      : "100.00"
-                  }
+                  placeholder="100.00"
                   value={budgetAmount}
                   onChange={(event) =>
-                    setBudgetAmount(event.target.value)
+                    setBudgetAmount(
+                      event.target.value
+                    )
                   }
                   required
                 />
@@ -331,6 +451,7 @@ function App() {
 
             <label>
               Start date
+
               <input
                 type="date"
                 value={budgetStartDate}
@@ -344,8 +465,8 @@ function App() {
             </label>
 
             <p className="date-explanation">
-              Purchases on or after this date count toward
-              Safe to Spend.
+              Purchases on or after this date
+              count toward Safe to Spend.
             </p>
 
             <button
@@ -356,21 +477,112 @@ function App() {
               {savingBudget
                 ? "Saving..."
                 : safeToSpend
-                ? "Update Budget"
-                : "Set Budget"}
+                ? "Set Budget"
+                : "Create Budget"}
             </button>
+
+            {safeToSpend && (
+              <button
+                className="edit-button"
+                type="button"
+                onClick={closeBudgetPanel}
+                style={{
+                  width: "100%",
+                  marginTop: "10px",
+                }}
+              >
+                Cancel
+              </button>
+            )}
           </form>
         )}
 
+        {budgetMode === "add" &&
+          safeToSpend && (
+            <form
+              className="budget-card"
+              onSubmit={handleAddMoney}
+            >
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">
+                    ADD MONEY
+                  </p>
+
+                  <h2>
+                    Increase your spendable budget
+                  </h2>
+                </div>
+              </div>
+
+              <label>
+                Amount to add
+
+                <div className="money-input">
+                  <span>$</span>
+
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="300.00"
+                    value={addAmount}
+                    onChange={(event) =>
+                      setAddAmount(
+                        event.target.value
+                      )
+                    }
+                    required
+                  />
+                </div>
+              </label>
+
+              <p className="date-explanation">
+                Current budget: $
+                {formatMoney(
+                  safeToSpend.allocation
+                )}
+                . Your start date stays the same.
+              </p>
+
+              <button
+                className="save-button"
+                type="submit"
+                disabled={addingMoney}
+              >
+                {addingMoney
+                  ? "Adding..."
+                  : "Add Money"}
+              </button>
+
+              <button
+                className="edit-button"
+                type="button"
+                onClick={closeBudgetPanel}
+                style={{
+                  width: "100%",
+                  marginTop: "10px",
+                }}
+              >
+                Cancel
+              </button>
+            </form>
+          )}
+
         {message && (
-          <p className="message">{message}</p>
+          <p className="message">
+            {message}
+          </p>
         )}
 
         {safeToSpend && (
           <section className="activity">
             <div className="activity-header">
               <div>
-                <p className="eyebrow">CURRENT PERIOD</p>
+                <p className="eyebrow">
+                  CURRENT PERIOD
+                </p>
+
                 <h2>Recent Activity</h2>
               </div>
 
@@ -399,18 +611,25 @@ function App() {
                         </p>
 
                         <p className="transaction-meta">
-                          {formatDate(transaction.date)}
+                          {formatDate(
+                            transaction.date
+                          )}
+
                           {transaction.transactionTime &&
                             ` · ${formatTime(
                               transaction.transactionTime
                             )}`}
+
                           {transaction.cardLast4 &&
                             ` · •••• ${transaction.cardLast4}`}
                         </p>
                       </div>
 
                       <strong className="transaction-amount">
-                        -${formatMoney(transaction.amount)}
+                        -$
+                        {formatMoney(
+                          transaction.amount
+                        )}
                       </strong>
                     </div>
                   )
@@ -419,8 +638,10 @@ function App() {
             ) : (
               <div className="no-transactions">
                 <p>No purchases yet.</p>
+
                 <span>
-                  Refresh after your next card purchase.
+                  Refresh after your next card
+                  purchase.
                 </span>
               </div>
             )}

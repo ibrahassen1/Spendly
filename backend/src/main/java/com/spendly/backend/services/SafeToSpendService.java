@@ -27,11 +27,9 @@ public class SafeToSpendService {
     public SafeToSpendResponse setAllocation(
             AllocationRequest request
     ) {
-        if (request.amount() == null
-                || request.amount().compareTo(BigDecimal.ZERO) < 0) {
-
+        if (request.amount() == null) {
             throw new IllegalArgumentException(
-                    "Allocation amount must be zero or greater"
+                    "Allocation amount is required"
             );
         }
 
@@ -67,9 +65,6 @@ public class SafeToSpendService {
                 emailAlertTransactionRepository
                         .findAll()
                         .stream()
-
-                        // Only count purchases on or after
-                        // the current allocation start date.
                         .filter(
                                 transaction ->
                                         !transaction
@@ -78,20 +73,15 @@ public class SafeToSpendService {
                                                         allocation.getStartDate()
                                                 )
                         )
-
-                        // Only count transactions that have
-                        // not been reconciled/removed.
                         .filter(
                                 transaction ->
                                         "TEMPORARY".equalsIgnoreCase(
                                                 transaction.getStatus()
                                         )
                         )
-
                         .map(
                                 EmailAlertTransaction::getAmount
                         )
-
                         .reduce(
                                 BigDecimal.ZERO,
                                 BigDecimal::add
