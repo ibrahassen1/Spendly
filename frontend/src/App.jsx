@@ -12,6 +12,12 @@ function App() {
   const [updateStatus, setUpdateStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [budgetStartDate, setBudgetStartDate] = useState(
+    new Date().toLocaleDateString("en-CA")
+  );
+  const [savingBudget, setSavingBudget] = useState(false);
+
   const fetchSafeToSpend = async () => {
     const response = await fetch(
       `${API_BASE_URL}/api/safe-to-spend`
@@ -52,13 +58,61 @@ function App() {
   };
 
   useEffect(() => {
-    Promise.all([
-      fetchSafeToSpend(),
-      fetchRecentTransactions(),
-    ]).catch(() => {
-      setMessage("Could not load Spendly data.");
+    fetchSafeToSpend().catch(() => {
+      // A new user may not have a budget yet.
+    });
+
+    fetchRecentTransactions().catch(() => {
+      setMessage("Could not load recent transactions.");
     });
   }, []);
+
+  const handleSetBudget = async (event) => {
+    event.preventDefault();
+
+    try {
+      setSavingBudget(true);
+      setMessage("Saving budget...");
+
+      const amount = Number(budgetAmount);
+
+      if (!budgetAmount || Number.isNaN(amount) || amount < 0) {
+        throw new Error("Enter a valid budget amount.");
+      }
+
+      if (!budgetStartDate) {
+        throw new Error("Choose a start date.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/safe-to-spend/allocation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount,
+            startDate: budgetStartDate,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Could not save budget.");
+      }
+
+      const data = await response.json();
+
+      setSafeToSpend(data);
+      setBudgetAmount("");
+      setMessage("Budget saved ✓");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSavingBudget(false);
+    }
+  };
 
   const handleRefresh = async () => {
     try {
@@ -155,16 +209,69 @@ function App() {
           </section>
         )}
 
+        <form
+          className="budget-form"
+          onSubmit={handleSetBudget}
+        >
+          <h2>
+            {safeToSpend ? "Edit Budget" : "Set Budget"}
+          </h2>
+
+          <label>
+            Spendable amount
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="100.00"
+              value={budgetAmount}
+              onChange={(event) =>
+                setBudgetAmount(event.target.value)
+              }
+              required
+            />
+          </label>
+
+          <label>
+            Start date
+            <input
+              type="date"
+              value={budgetStartDate}
+              onChange={(event) =>
+                setBudgetStartDate(event.target.value)
+              }
+              required
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={savingBudget}
+          >
+            {savingBudget
+              ? "Saving..."
+              : safeToSpend
+              ? "Update Budget"
+              : "Set Budget"}
+          </button>
+        </form>
+
         <div className="buttons">
           <button
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={loading || !safeToSpend}
           >
             {loading
               ? "Checking..."
               : "Refresh Transactions"}
           </button>
         </div>
+
+        {!safeToSpend && (
+          <p className="message">
+            Set your budget to get started.
+          </p>
+        )}
 
         {message && (
           <p className="message">
