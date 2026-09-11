@@ -28,6 +28,9 @@ public class EmailAlertTransaction {
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 
+    @Column(name = "transaction_time")
+    private LocalDateTime transactionTime;
+
     @Column(nullable = false)
     private String status = "TEMPORARY";
 
@@ -91,6 +94,14 @@ public class EmailAlertTransaction {
 
     public void setTransactionDate(LocalDate transactionDate) {
         this.transactionDate = transactionDate;
+    }
+
+    public LocalDateTime getTransactionTime() {
+        return transactionTime;
+    }
+
+    public void setTransactionTime(LocalDateTime transactionTime) {
+        this.transactionTime = transactionTime;
     }
 
     public String getStatus() {

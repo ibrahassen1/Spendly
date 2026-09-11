@@ -22,10 +22,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,6 +37,9 @@ public class GmailService {
 
     private static final String GMAIL_READONLY_SCOPE =
             "https://www.googleapis.com/auth/gmail.readonly";
+
+    private static final ZoneId TRANSACTION_ZONE =
+            ZoneId.of("America/New_York");
 
     private static final Pattern AMOUNT_PATTERN =
             Pattern.compile(
@@ -226,9 +231,16 @@ public class GmailService {
                             .path("id")
                             .asText();
 
-            if (emailAlertTransactionRepository
-                    .findByGmailMessageId(messageId)
-                    .isPresent()) {
+            Optional<EmailAlertTransaction> existingTransaction =
+                    emailAlertTransactionRepository
+                            .findByGmailMessageId(messageId);
+
+            if (existingTransaction.isPresent()) {
+                backfillTransactionTimeIfNeeded(
+                        existingTransaction.get(),
+                        messageId,
+                        accessToken
+                );
                 continue;
             }
 
@@ -262,6 +274,37 @@ public class GmailService {
                 totalReduced,
                 newTransactions
         );
+    }
+
+    private void backfillTransactionTimeIfNeeded(
+            EmailAlertTransaction transaction,
+            String messageId,
+            String accessToken
+    ) throws IOException, InterruptedException {
+
+        if (transaction.getTransactionTime() != null) {
+            return;
+        }
+
+        try {
+            GmailAlertResponse alert =
+                    fetchAndParseMessage(
+                            messageId,
+                            accessToken
+                    );
+
+            transaction.setTransactionTime(
+                    alert.transactionTime()
+            );
+
+            emailAlertTransactionRepository.save(
+                    transaction
+            );
+
+        } catch (RuntimeException exception) {
+            // Leave the timestamp empty if the email
+            // cannot be parsed safely.
+        }
     }
 
     private GmailAlertResponse fetchAndParseMessage(
@@ -299,15 +342,21 @@ public class GmailService {
                                 .asText("")
                 );
 
-        LocalDate fallbackDate =
-                dateFromInternalTimestamp(
+        LocalDateTime fallbackTimestamp =
+                dateTimeFromInternalTimestamp(
                         message.path("internalDate")
                                 .asText("")
                 );
 
+        LocalDate fallbackDate =
+                fallbackTimestamp == null
+                        ? null
+                        : fallbackTimestamp.toLocalDate();
+
         return parseWellsFargoAlert(
                 snippet,
-                fallbackDate
+                fallbackDate,
+                fallbackTimestamp
         );
     }
 
@@ -412,6 +461,7 @@ public class GmailService {
         transaction.setAmount(alert.amount());
         transaction.setCardLast4(alert.cardLast4());
         transaction.setTransactionDate(alert.date());
+        transaction.setTransactionTime(alert.transactionTime());
         transaction.setStatus("TEMPORARY");
 
         emailAlertTransactionRepository.save(
@@ -421,7 +471,8 @@ public class GmailService {
 
     private GmailAlertResponse parseWellsFargoAlert(
             String text,
-            LocalDate fallbackDate
+            LocalDate fallbackDate,
+            LocalDateTime fallbackTimestamp
     ) {
         Matcher amountMatcher =
                 AMOUNT_PATTERN.matcher(text);
@@ -483,15 +534,26 @@ public class GmailService {
             );
         }
 
+        LocalDateTime transactionTime = null;
+
+        if (fallbackTimestamp != null) {
+            transactionTime =
+                    LocalDateTime.of(
+                            date,
+                            fallbackTimestamp.toLocalTime()
+                    );
+        }
+
         return new GmailAlertResponse(
                 merchant,
                 amount,
                 cardLast4,
-                date
+                date,
+                transactionTime
         );
     }
 
-    private LocalDate dateFromInternalTimestamp(
+    private LocalDateTime dateTimeFromInternalTimestamp(
             String internalDate
     ) {
         if (internalDate == null
@@ -505,12 +567,8 @@ public class GmailService {
 
             return Instant
                     .ofEpochMilli(milliseconds)
-                    .atZone(
-                            ZoneId.of(
-                                    "America/New_York"
-                            )
-                    )
-                    .toLocalDate();
+                    .atZone(TRANSACTION_ZONE)
+                    .toLocalDateTime();
 
         } catch (NumberFormatException exception) {
             return null;

@@ -82,7 +82,8 @@ public class GmailController {
                                                 transaction.getMerchant(),
                                                 transaction.getAmount(),
                                                 transaction.getCardLast4(),
-                                                transaction.getTransactionDate()
+                                                transaction.getTransactionDate(),
+                                                transaction.getTransactionTime()
                                         )
                         )
                         .toList();
