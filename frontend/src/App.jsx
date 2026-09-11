@@ -186,10 +186,10 @@ function App() {
       if (
         addAmount === "" ||
         Number.isNaN(amountToAdd) ||
-        amountToAdd <= 0
+        amountToAdd === 0
       ) {
         throw new Error(
-          "Enter an amount greater than $0."
+          "Enter a positive or negative amount."
         );
       }
 
@@ -506,26 +506,25 @@ function App() {
               <div className="section-heading">
                 <div>
                   <p className="eyebrow">
-                    ADD MONEY
+                    ADJUST MONEY
                   </p>
 
                   <h2>
-                    Increase your spendable budget
+                    Adjust your spendable budget
                   </h2>
                 </div>
               </div>
 
               <label>
-                Amount to add
+                Amount to adjust
 
                 <div className="money-input">
                   <span>$</span>
 
                   <input
                     type="number"
-                    min="0.01"
                     step="0.01"
-                    placeholder="300.00"
+                    placeholder="100.00 or -100.00"
                     value={addAmount}
                     onChange={(event) =>
                       setAddAmount(
@@ -551,8 +550,8 @@ function App() {
                 disabled={addingMoney}
               >
                 {addingMoney
-                  ? "Adding..."
-                  : "Add Money"}
+                  ? "Adjusting..."
+                  : "Adjust Money"}
               </button>
 
               <button
