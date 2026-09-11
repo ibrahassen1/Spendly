@@ -8,7 +8,10 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/safe-to-spend")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://spendly-two-beige.vercel.app"
+})
 public class SafeToSpendController {
 
     private final SafeToSpendService safeToSpendService;

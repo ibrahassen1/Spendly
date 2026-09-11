@@ -2,7 +2,6 @@ package com.spendly.backend.controllers;
 
 import com.spendly.backend.dto.GmailAlertResponse;
 import com.spendly.backend.dto.GmailRefreshResponse;
-import com.spendly.backend.models.EmailAlertTransaction;
 import com.spendly.backend.repositories.EmailAlertTransactionRepository;
 import com.spendly.backend.services.GmailService;
 import org.springframework.http.HttpHeaders;
@@ -14,7 +13,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/gmail")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://spendly-two-beige.vercel.app"
+})
 public class GmailController {
 
     private final GmailService gmailService;

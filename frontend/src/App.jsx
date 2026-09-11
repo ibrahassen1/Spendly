@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
+const API_BASE_URL =
+  "https://spendly-production-1bdf.up.railway.app";
+
 function App() {
   const [message, setMessage] = useState("");
   const [safeToSpend, setSafeToSpend] = useState(null);
@@ -11,7 +14,7 @@ function App() {
 
   const fetchSafeToSpend = async () => {
     const response = await fetch(
-      "http://localhost:8080/api/safe-to-spend"
+      `${API_BASE_URL}/api/safe-to-spend`
     );
 
     if (!response.ok) {
@@ -24,7 +27,7 @@ function App() {
 
   const fetchRecentTransactions = async () => {
     const response = await fetch(
-      "http://localhost:8080/api/gmail/recent"
+      `${API_BASE_URL}/api/gmail/recent`
     );
 
     if (!response.ok) {
@@ -63,7 +66,7 @@ function App() {
       setMessage("Checking for new purchases...");
 
       const gmailResponse = await fetch(
-        "http://localhost:8080/api/gmail/refresh",
+        `${API_BASE_URL}/api/gmail/refresh`,
         {
           method: "POST",
         }
@@ -126,38 +129,27 @@ function App() {
                   : "amount"
               }
             >
-              $
-              {Number(
-                safeToSpend.safeToSpend
-              ).toFixed(2)}
+              ${Number(safeToSpend.safeToSpend).toFixed(2)}
             </h2>
 
             <div className="details">
               <p>
                 Allocation:
                 <strong>
-                  $
-                  {Number(
-                    safeToSpend.allocation
-                  ).toFixed(2)}
+                  ${Number(safeToSpend.allocation).toFixed(2)}
                 </strong>
               </p>
 
               <p>
                 Counted Spending:
                 <strong>
-                  $
-                  {Number(
-                    safeToSpend.countedSpending
-                  ).toFixed(2)}
+                  ${Number(safeToSpend.countedSpending).toFixed(2)}
                 </strong>
               </p>
 
               <p>
                 Since:
-                <strong>
-                  {safeToSpend.startDate}
-                </strong>
+                <strong>{safeToSpend.startDate}</strong>
               </p>
             </div>
           </section>
@@ -204,27 +196,21 @@ function App() {
                     </p>
 
                     <p className="transaction-meta">
-                      Card ••••{" "}
-                      {transaction.cardLast4}
+                      Card •••• {transaction.cardLast4}
                       {" · "}
                       {transaction.date}
                     </p>
                   </div>
 
                   <strong className="transaction-amount">
-                    -$
-                    {Number(
-                      transaction.amount
-                    ).toFixed(2)}
+                    -${Number(transaction.amount).toFixed(2)}
                   </strong>
                 </div>
               )
             )}
 
             <div className="refresh-total">
-              <span>
-                Recent total
-              </span>
+              <span>Recent total</span>
 
               <strong>
                 -${totalReduced.toFixed(2)}
