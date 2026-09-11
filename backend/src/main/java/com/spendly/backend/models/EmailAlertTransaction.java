@@ -31,6 +31,9 @@ public class EmailAlertTransaction {
     @Column(name = "transaction_time")
     private LocalDateTime transactionTime;
 
+    @Column(name = "source_bank", nullable = false, length = 50)
+    private String sourceBank = "WELLS_FARGO";
+
     @Column(nullable = false)
     private String status = "TEMPORARY";
 
@@ -102,6 +105,14 @@ public class EmailAlertTransaction {
 
     public void setTransactionTime(LocalDateTime transactionTime) {
         this.transactionTime = transactionTime;
+    }
+
+    public String getSourceBank() {
+        return sourceBank;
+    }
+
+    public void setSourceBank(String sourceBank) {
+        this.sourceBank = sourceBank;
     }
 
     public String getStatus() {

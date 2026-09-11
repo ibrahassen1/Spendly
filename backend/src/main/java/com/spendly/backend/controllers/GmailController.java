@@ -72,7 +72,7 @@ public class GmailController {
             throws IOException, InterruptedException {
 
         return ResponseEntity.ok(
-                gmailService.refreshWellsFargoAlerts()
+                gmailService.refreshBankAlerts()
         );
     }
 
@@ -102,7 +102,8 @@ public class GmailController {
                                                 transaction.getAmount(),
                                                 transaction.getCardLast4(),
                                                 transaction.getTransactionDate(),
-                                                transaction.getTransactionTime()
+                                                transaction.getTransactionTime(),
+                                                transaction.getSourceBank()
                                         )
                         )
                         .toList();

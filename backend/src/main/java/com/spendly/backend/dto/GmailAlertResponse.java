@@ -9,6 +9,7 @@ public record GmailAlertResponse(
         BigDecimal amount,
         String cardLast4,
         LocalDate date,
-        LocalDateTime transactionTime
+        LocalDateTime transactionTime,
+        String sourceBank
 ) {
 }
