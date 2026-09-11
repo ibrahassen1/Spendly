@@ -322,6 +322,17 @@ button:disabled {
   box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.07);
 }
 
+input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(88%) sepia(69%) saturate(2478%)
+    hue-rotate(145deg) brightness(104%) contrast(101%);
+  opacity: 0.9;
+}
+
 .money-input {
   position: relative;
 }
