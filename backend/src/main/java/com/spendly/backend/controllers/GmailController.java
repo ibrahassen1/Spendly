@@ -2,7 +2,9 @@ package com.spendly.backend.controllers;
 
 import com.spendly.backend.dto.GmailAlertResponse;
 import com.spendly.backend.dto.GmailRefreshResponse;
+import com.spendly.backend.models.SpendingAllocation;
 import com.spendly.backend.repositories.EmailAlertTransactionRepository;
+import com.spendly.backend.repositories.SpendingAllocationRepository;
 import com.spendly.backend.services.GmailService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -21,13 +23,18 @@ public class GmailController {
 
     private final GmailService gmailService;
     private final EmailAlertTransactionRepository emailAlertTransactionRepository;
+    private final SpendingAllocationRepository spendingAllocationRepository;
 
     public GmailController(
             GmailService gmailService,
-            EmailAlertTransactionRepository emailAlertTransactionRepository
+            EmailAlertTransactionRepository emailAlertTransactionRepository,
+            SpendingAllocationRepository spendingAllocationRepository
     ) {
         this.gmailService = gmailService;
-        this.emailAlertTransactionRepository = emailAlertTransactionRepository;
+        this.emailAlertTransactionRepository =
+                emailAlertTransactionRepository;
+        this.spendingAllocationRepository =
+                spendingAllocationRepository;
     }
 
     @GetMapping("/oauth/start")
@@ -72,9 +79,21 @@ public class GmailController {
     @GetMapping("/recent")
     public ResponseEntity<List<GmailAlertResponse>> recentTransactions() {
 
-        List<GmailAlertResponse> recent =
+        SpendingAllocation allocation =
+                spendingAllocationRepository
+                        .findTopByOrderByCreatedAtDesc()
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "No spending allocation has been set"
+                                )
+                        );
+
+        List<GmailAlertResponse> transactions =
                 emailAlertTransactionRepository
-                        .findTop5ByOrderByCreatedAtDesc()
+                        .findByTransactionDateGreaterThanEqualAndStatusIgnoreCaseOrderByTransactionTimeDesc(
+                                allocation.getStartDate(),
+                                "TEMPORARY"
+                        )
                         .stream()
                         .map(
                                 transaction ->
@@ -88,6 +107,6 @@ public class GmailController {
                         )
                         .toList();
 
-        return ResponseEntity.ok(recent);
+        return ResponseEntity.ok(transactions);
     }
 }
