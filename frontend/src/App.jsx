@@ -307,10 +307,10 @@ function App() {
               </div>
 
               <h2
-                className={
-                  Number(
-                    safeToSpend.safeToSpend
-                  ) < 0
+               className={
+                  Number(safeToSpend.safeToSpend) > 0
+                    ? "amount positive"
+                    : Number(safeToSpend.safeToSpend) < 0
                     ? "amount negative"
                     : "amount"
                 }

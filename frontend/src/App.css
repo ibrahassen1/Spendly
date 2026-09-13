@@ -158,6 +158,10 @@ button {
   text-shadow: none;
 }
 
+.amount.positive {
+  color: #22c55e;
+}
+
 .safe-subtitle {
   position: relative;
   z-index: 1;
