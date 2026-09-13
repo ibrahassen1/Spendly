@@ -1,17 +1,5 @@
 package com.spendly.backend.services;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.spendly.backend.dto.GmailAlertResponse;
-import com.spendly.backend.dto.GmailRefreshResponse;
-import com.spendly.backend.models.EmailAlertTransaction;
-import com.spendly.backend.models.GmailCredential;
-import com.spendly.backend.repositories.EmailAlertTransactionRepository;
-import com.spendly.backend.repositories.GmailCredentialRepository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriComponentsBuilder;
-
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -34,6 +22,19 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spendly.backend.dto.GmailAlertResponse;
+import com.spendly.backend.dto.GmailRefreshResponse;
+import com.spendly.backend.models.EmailAlertTransaction;
+import com.spendly.backend.models.GmailCredential;
+import com.spendly.backend.repositories.EmailAlertTransactionRepository;
+import com.spendly.backend.repositories.GmailCredentialRepository;
 
 @Service
 public class GmailService {
@@ -64,7 +65,13 @@ public class GmailService {
 
     private static final Pattern WF_MERCHANT_PATTERN =
             Pattern.compile(
-                    "Merchant\\s*:\\s*(.+?)(?:\\s+Date\\s*:|$)",
+                    "Merchant\\s*:\\s*(.+?)(?="
+                            + "\\s+Date\\s*:"
+                            + "|\\s+Wells\\s+Fargo\\s+Alert"
+                            + "|\\s+Don't\\s+recognize"
+                            + "|\\s+Card\\s+Controls"
+                            + "|\\s+If\\s+you\\s+don't\\s+recognize"
+                            + "|$)",
                     Pattern.CASE_INSENSITIVE
             );
 
@@ -108,19 +115,15 @@ public class GmailService {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.redirectUri = redirectUri;
-        this.emailAlertTransactionRepository =
-                emailAlertTransactionRepository;
-        this.gmailCredentialRepository =
-                gmailCredentialRepository;
+        this.emailAlertTransactionRepository = emailAlertTransactionRepository;
+        this.gmailCredentialRepository = gmailCredentialRepository;
     }
 
     public String createAuthorizationUrl() {
         expectedState = UUID.randomUUID().toString();
 
         return UriComponentsBuilder
-                .fromUriString(
-                        "https://accounts.google.com/o/oauth2/v2/auth"
-                )
+                .fromUriString("https://accounts.google.com/o/oauth2/v2/auth")
                 .queryParam("client_id", clientId)
                 .queryParam("redirect_uri", redirectUri)
                 .queryParam("response_type", "code")
@@ -141,7 +144,6 @@ public class GmailService {
         if (expectedState == null
                 || state == null
                 || !expectedState.equals(state)) {
-
             throw new IllegalArgumentException(
                     "Invalid Google OAuth state"
             );
@@ -316,8 +318,13 @@ public class GmailService {
                         );
 
             } catch (RuntimeException exception) {
-                // Ignore messages that are not supported
-                // purchase alerts.
+
+                System.err.println(
+                        "Failed to parse Gmail message "
+                                + messageId
+                                + ": "
+                                + exception.getMessage()
+                );
             }
         }
 
@@ -526,6 +533,14 @@ public class GmailService {
 
         return html
                 .replaceAll(
+                        "(?is)<style[^>]*>.*?</style>",
+                        " "
+                )
+                .replaceAll(
+                        "(?is)<script[^>]*>.*?</script>",
+                        " "
+                )
+                .replaceAll(
                         "(?i)<br\\s*/?>",
                         " "
                 )
@@ -629,8 +644,9 @@ public class GmailService {
                 cardMatcher.group(1);
 
         String merchant =
-                merchantMatcher.group(1)
-                        .trim();
+                cleanMerchant(
+                        merchantMatcher.group(1)
+                );
 
         LocalDate date =
                 fallbackDate;
@@ -668,6 +684,50 @@ public class GmailService {
                 "WELLS_FARGO"
         );
     }
+
+   private String cleanMerchant(
+        String merchant
+) {
+
+    String cleaned =
+            normalize(
+                    merchant
+            );
+
+    int wellsAlertIndex =
+            cleaned.toLowerCase(
+                    Locale.ROOT
+            ).indexOf(
+                    "wells fargo alert"
+            );
+
+    if (wellsAlertIndex >= 0) {
+
+        cleaned =
+                cleaned.substring(
+                        0,
+                        wellsAlertIndex
+                ).trim();
+    }
+
+    // Remove trailing punctuation left by Wells Fargo formatting.
+    cleaned =
+            cleaned.replaceAll(
+                    "[,;:\\s]+$",
+                    ""
+            );
+
+    if (cleaned.length() > 255) {
+
+        cleaned =
+                cleaned.substring(
+                        0,
+                        255
+                );
+    }
+
+    return cleaned;
+}
 
     private GmailAlertResponse parseDiscoverAlert(
             String text,
@@ -1008,7 +1068,9 @@ public class GmailService {
 
         return HttpRequest.newBuilder()
                 .uri(
-                        URI.create(url)
+                        URI.create(
+                                url
+                        )
                 )
                 .header(
                         "Authorization",
