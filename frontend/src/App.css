@@ -412,7 +412,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   position: relative;
   overflow: hidden;
   width: 100%;
-  background: #e33c4d;
+  background: #070e12;
   border-bottom: 1px solid #102027;
 }
 
