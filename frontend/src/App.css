@@ -436,12 +436,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   padding: 0;
   border-radius: 0;
   color: #ffffff;
-  background: #e33c4d;
+  background: transparent;
   pointer-events: none;
   cursor: pointer;
 }
 
 .delete-reveal.delete-active {
+  background: #e33c4d;
   pointer-events: auto;
 }
 
