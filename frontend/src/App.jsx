@@ -208,6 +208,13 @@ function App() {
     setDeletingTransaction,
   ] = useState(false);
 
+  const [
+    undoTransaction,
+    setUndoTransaction,
+  ] = useState(null);
+
+  const undoTimerRef = useRef(null);
+
   const formatMoney = (amount) =>
     Number(amount || 0).toFixed(2);
 
@@ -290,6 +297,12 @@ function App() {
     };
 
     loadDashboard();
+
+    return () => {
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current);
+      }
+    };
   }, []);
 
   const openEditBudget = () => {
@@ -534,8 +547,11 @@ function App() {
       try {
         setDeletingTransaction(true);
 
+        const deletedTransaction =
+          transactionToDelete;
+
         const response = await fetch(
-          `${API_BASE_URL}/api/gmail/transactions/${transactionToDelete.id}`,
+          `${API_BASE_URL}/api/gmail/transactions/${deletedTransaction.id}`,
           {
             method: "DELETE",
           }
@@ -547,15 +563,12 @@ function App() {
           );
         }
 
-        const deletedAmount =
-          transactionToDelete.amount;
-
         setTransactions(
           (currentTransactions) =>
             currentTransactions.filter(
               (transaction) =>
                 transaction.id !==
-                transactionToDelete.id
+                deletedTransaction.id
             )
         );
 
@@ -563,17 +576,71 @@ function App() {
 
         await fetchSafeToSpend();
 
-        setMessage(
-          `$${formatMoney(
-            deletedAmount
-          )} restored to Safe to Spend ✓`
+        if (undoTimerRef.current) {
+          clearTimeout(
+            undoTimerRef.current
+          );
+        }
+
+        setUndoTransaction(
+          deletedTransaction
         );
+
+        undoTimerRef.current =
+          setTimeout(() => {
+            setUndoTransaction(null);
+            undoTimerRef.current = null;
+          }, 5000);
+
       } catch (error) {
         setMessage(error.message);
       } finally {
         setDeletingTransaction(false);
       }
     };
+
+  const handleUndoDelete = async () => {
+    if (!undoTransaction) {
+      return;
+    }
+
+    try {
+      const transaction =
+        undoTransaction;
+
+      if (undoTimerRef.current) {
+        clearTimeout(
+          undoTimerRef.current
+        );
+
+        undoTimerRef.current = null;
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/gmail/transactions/${transaction.id}/restore`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Could not restore transaction."
+        );
+      }
+
+      setUndoTransaction(null);
+
+      await fetchTransactions();
+      await fetchSafeToSpend();
+
+      setMessage(
+        "Transaction restored ✓"
+      );
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
 
   return (
     <main className="app">
@@ -997,6 +1064,32 @@ function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {undoTransaction && (
+        <div className="undo-toast">
+          <div className="undo-toast-text">
+            <strong>
+              Transaction deleted
+            </strong>
+
+            <span>
+              $
+              {formatMoney(
+                undoTransaction.amount
+              )}{" "}
+              restored
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="undo-button"
+            onClick={handleUndoDelete}
+          >
+            UNDO
+          </button>
         </div>
       )}
     </main>

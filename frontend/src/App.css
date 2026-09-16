@@ -399,8 +399,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 0.7rem;
 }
 
-/* TRANSACTIONS */
-
 .transaction-list {
   overflow: hidden;
   border: 1px solid #102229;
@@ -420,10 +418,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-bottom: 0;
 }
 
-/*
-  Delete action lives UNDER its own transaction.
-  It cannot receive clicks until that row is fully open.
-*/
 .delete-reveal {
   position: absolute;
   z-index: 1;
@@ -446,11 +440,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   pointer-events: auto;
 }
 
-.delete-reveal:hover {
+.delete-reveal.delete-active:hover {
   background: #d93647;
 }
 
-.delete-reveal:active {
+.delete-reveal.delete-active:active {
   transform: none;
   background: #c92f40;
 }
@@ -462,7 +456,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   pointer-events: none;
 }
 
-/* Trash can body */
 .trash-icon::before {
   content: "";
   position: absolute;
@@ -474,7 +467,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: 2px 2px 4px 4px;
 }
 
-/* Open lid */
 .trash-icon::after {
   content: "";
   position: absolute;
@@ -484,7 +476,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   height: 3px;
   border-radius: 3px;
   background: #ffffff;
-
   transform: rotate(-22deg);
   transform-origin: left center;
 }
@@ -569,8 +560,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .no-transactions span {
   font-size: 0.76rem;
 }
-
-/* DELETE MODAL */
 
 .modal-backdrop {
   position: fixed;
@@ -658,6 +647,79 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: #d93647;
 }
 
+/* 5 SECOND UNDO TOAST */
+
+.undo-toast {
+  position: fixed;
+  z-index: 1100;
+  left: 50%;
+  bottom: 24px;
+
+  display: flex;
+  width: calc(100% - 32px);
+  max-width: 430px;
+
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 14px 16px;
+
+  border: 1px solid #18313a;
+  border-radius: 16px;
+
+  background: #0c171c;
+
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 0 20px rgba(0, 217, 255, 0.05);
+
+  transform: translateX(-50%);
+  animation: undo-toast-in 0.22s ease;
+}
+
+.undo-toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.undo-toast-text strong {
+  color: #e8fbff;
+  font-size: 0.82rem;
+}
+
+.undo-toast-text span {
+  color: #6f8a91;
+  font-size: 0.72rem;
+}
+
+.undo-button {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  color: #00d9ff;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.undo-button:active {
+  transform: scale(0.95);
+}
+
+@keyframes undo-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 footer {
   display: flex;
   justify-content: center;
@@ -692,5 +754,9 @@ footer {
 
   .transaction-row {
     padding: 14px 13px;
+  }
+
+  .undo-toast {
+    bottom: 16px;
   }
 }

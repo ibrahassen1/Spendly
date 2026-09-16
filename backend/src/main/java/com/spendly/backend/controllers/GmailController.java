@@ -142,4 +142,26 @@ public class GmailController {
 
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/transactions/{id}/restore")
+    public ResponseEntity<Void> restoreTransaction(
+            @PathVariable Long id
+    ) {
+        EmailAlertTransaction transaction =
+                emailAlertTransactionRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "Transaction not found"
+                                )
+                        );
+
+        transaction.setStatus("TEMPORARY");
+
+        emailAlertTransactionRepository.save(
+                transaction
+        );
+
+        return ResponseEntity.noContent().build();
+    }
 }
