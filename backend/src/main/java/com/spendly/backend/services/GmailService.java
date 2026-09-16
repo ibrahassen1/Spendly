@@ -195,17 +195,12 @@ public class GmailService {
                         .asText("");
 
         if (!refreshToken.isBlank()) {
-
-            saveRefreshToken(
-                    refreshToken
-            );
-
+            saveRefreshToken(refreshToken);
         } else if (
                 gmailCredentialRepository
                         .findTopByOrderByIdDesc()
                         .isEmpty()
         ) {
-
             throw new RuntimeException(
                     "Google did not return a refresh token"
             );
@@ -303,18 +298,30 @@ public class GmailService {
                                 accessToken
                         );
 
-                saveAlert(
-                        messageId,
-                        alert
-                );
+                EmailAlertTransaction savedTransaction =
+                        saveAlert(
+                                messageId,
+                                alert
+                        );
+
+                GmailAlertResponse savedAlert =
+                        new GmailAlertResponse(
+                                savedTransaction.getId(),
+                                savedTransaction.getMerchant(),
+                                savedTransaction.getAmount(),
+                                savedTransaction.getCardLast4(),
+                                savedTransaction.getTransactionDate(),
+                                savedTransaction.getTransactionTime(),
+                                savedTransaction.getSourceBank()
+                        );
 
                 newTransactions.add(
-                        alert
+                        savedAlert
                 );
 
                 totalReduced =
                         totalReduced.add(
-                                alert.amount()
+                                savedAlert.amount()
                         );
 
             } catch (RuntimeException exception) {
@@ -401,10 +408,7 @@ public class GmailService {
                         ? null
                         : fallbackTimestamp.toLocalDate();
 
-        if (sender.contains(
-                WELLS_FARGO_SENDER
-        )) {
-
+        if (sender.contains(WELLS_FARGO_SENDER)) {
             return parseWellsFargoAlert(
                     combinedText,
                     fallbackDate,
@@ -412,10 +416,7 @@ public class GmailService {
             );
         }
 
-        if (sender.contains(
-                DISCOVER_SENDER
-        )) {
-
+        if (sender.contains(DISCOVER_SENDER)) {
             return parseDiscoverAlert(
                     combinedText,
                     fallbackDate,
@@ -431,7 +432,6 @@ public class GmailService {
     private String extractMessageText(
             JsonNode payload
     ) {
-
         StringBuilder text =
                 new StringBuilder();
 
@@ -464,12 +464,8 @@ public class GmailService {
 
         if (!data.isBlank()
                 && (
-                mimeType.equalsIgnoreCase(
-                        "text/plain"
-                )
-                        || mimeType.equalsIgnoreCase(
-                        "text/html"
-                )
+                mimeType.equalsIgnoreCase("text/plain")
+                        || mimeType.equalsIgnoreCase("text/html")
         )) {
 
             String decoded =
@@ -477,10 +473,7 @@ public class GmailService {
                             data
                     );
 
-            if (mimeType.equalsIgnoreCase(
-                    "text/html"
-            )) {
-
+            if (mimeType.equalsIgnoreCase("text/html")) {
                 decoded =
                         htmlToText(
                                 decoded
@@ -495,9 +488,7 @@ public class GmailService {
                 part.path("parts");
 
         if (parts.isArray()) {
-
             for (JsonNode child : parts) {
-
                 extractMessageTextRecursive(
                         child,
                         text
@@ -511,7 +502,6 @@ public class GmailService {
     ) {
 
         try {
-
             byte[] decoded =
                     Base64.getUrlDecoder()
                             .decode(encoded);
@@ -522,7 +512,6 @@ public class GmailService {
             );
 
         } catch (IllegalArgumentException exception) {
-
             return "";
         }
     }
@@ -574,12 +563,10 @@ public class GmailService {
         }
 
         for (JsonNode header : headers) {
-
             if (headerName.equalsIgnoreCase(
                     header.path("name")
                             .asText("")
             )) {
-
                 return header.path("value")
                         .asText("");
             }
@@ -595,41 +582,30 @@ public class GmailService {
     ) {
 
         Matcher amountMatcher =
-                WF_AMOUNT_PATTERN.matcher(
-                        text
-                );
+                WF_AMOUNT_PATTERN.matcher(text);
 
         Matcher cardMatcher =
-                WF_CARD_PATTERN.matcher(
-                        text
-                );
+                WF_CARD_PATTERN.matcher(text);
 
         Matcher merchantMatcher =
-                WF_MERCHANT_PATTERN.matcher(
-                        text
-                );
+                WF_MERCHANT_PATTERN.matcher(text);
 
         Matcher dateMatcher =
-                WF_DATE_PATTERN.matcher(
-                        text
-                );
+                WF_DATE_PATTERN.matcher(text);
 
         if (!amountMatcher.find()) {
-
             throw new RuntimeException(
                     "Could not parse amount from Wells Fargo email"
             );
         }
 
         if (!cardMatcher.find()) {
-
             throw new RuntimeException(
                     "Could not parse card from Wells Fargo email"
             );
         }
 
         if (!merchantMatcher.find()) {
-
             throw new RuntimeException(
                     "Could not parse merchant from Wells Fargo email"
             );
@@ -652,7 +628,6 @@ public class GmailService {
                 fallbackDate;
 
         if (dateMatcher.find()) {
-
             date =
                     LocalDate.parse(
                             dateMatcher.group(1),
@@ -663,7 +638,6 @@ public class GmailService {
         }
 
         if (date == null) {
-
             throw new RuntimeException(
                     "Could not determine transaction date"
             );
@@ -676,6 +650,7 @@ public class GmailService {
                 );
 
         return new GmailAlertResponse(
+                null,
                 merchant,
                 amount,
                 cardLast4,
@@ -685,49 +660,46 @@ public class GmailService {
         );
     }
 
-   private String cleanMerchant(
-        String merchant
-) {
+    private String cleanMerchant(
+            String merchant
+    ) {
 
-    String cleaned =
-            normalize(
-                    merchant
-            );
-
-    int wellsAlertIndex =
-            cleaned.toLowerCase(
-                    Locale.ROOT
-            ).indexOf(
-                    "wells fargo alert"
-            );
-
-    if (wellsAlertIndex >= 0) {
-
-        cleaned =
-                cleaned.substring(
-                        0,
-                        wellsAlertIndex
-                ).trim();
-    }
-
-    // Remove trailing punctuation left by Wells Fargo formatting.
-    cleaned =
-            cleaned.replaceAll(
-                    "[,;:\\s]+$",
-                    ""
-            );
-
-    if (cleaned.length() > 255) {
-
-        cleaned =
-                cleaned.substring(
-                        0,
-                        255
+        String cleaned =
+                normalize(
+                        merchant
                 );
-    }
 
-    return cleaned;
-}
+        int wellsAlertIndex =
+                cleaned.toLowerCase(
+                        Locale.ROOT
+                ).indexOf(
+                        "wells fargo alert"
+                );
+
+        if (wellsAlertIndex >= 0) {
+            cleaned =
+                    cleaned.substring(
+                            0,
+                            wellsAlertIndex
+                    ).trim();
+        }
+
+        cleaned =
+                cleaned.replaceAll(
+                        "[,;:\\s]+$",
+                        ""
+                );
+
+        if (cleaned.length() > 255) {
+            cleaned =
+                    cleaned.substring(
+                            0,
+                            255
+                    );
+        }
+
+        return cleaned;
+    }
 
     private GmailAlertResponse parseDiscoverAlert(
             String text,
@@ -746,14 +718,12 @@ public class GmailService {
                 );
 
         if (!cardMatcher.find()) {
-
             throw new RuntimeException(
                     "Could not parse card from Discover email"
             );
         }
 
         if (!transactionMatcher.find()) {
-
             throw new RuntimeException(
                     "Could not parse Discover transaction"
             );
@@ -815,6 +785,7 @@ public class GmailService {
                 );
 
         return new GmailAlertResponse(
+                null,
                 merchant,
                 amount,
                 cardLast4,
@@ -872,19 +843,19 @@ public class GmailService {
         }
     }
 
-    private void saveAlert(
+    private EmailAlertTransaction saveAlert(
             String messageId,
             GmailAlertResponse alert
     ) {
 
-        if (
+        Optional<EmailAlertTransaction> existing =
                 emailAlertTransactionRepository
                         .findByGmailMessageId(
                                 messageId
-                        )
-                        .isPresent()
-        ) {
-            return;
+                        );
+
+        if (existing.isPresent()) {
+            return existing.get();
         }
 
         EmailAlertTransaction transaction =
@@ -922,7 +893,7 @@ public class GmailService {
                 "TEMPORARY"
         );
 
-        emailAlertTransactionRepository.save(
+        return emailAlertTransactionRepository.save(
                 transaction
         );
     }
@@ -987,7 +958,6 @@ public class GmailService {
                         .asText("");
 
         if (accessToken.isBlank()) {
-
             throw new RuntimeException(
                     "Google did not return an access token"
             );
@@ -1042,7 +1012,6 @@ public class GmailService {
                     .toLocalDateTime();
 
         } catch (NumberFormatException exception) {
-
             return null;
         }
     }

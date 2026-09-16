@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record GmailAlertResponse(
+        Long id,
         String merchant,
         BigDecimal amount,
         String cardLast4,

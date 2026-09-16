@@ -1,33 +1,223 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 
 const API_BASE_URL =
   "https://spendly-production-1bdf.up.railway.app";
 
+function SwipeableTransaction({
+  transaction,
+  formatMoney,
+  formatDate,
+  formatTime,
+  onDelete,
+}) {
+  const DELETE_WIDTH = 82;
+
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
+  const startX = useRef(null);
+  const startOffset = useRef(0);
+  const dragged = useRef(false);
+
+  const isOpen = offset <= -DELETE_WIDTH;
+
+  const handlePointerDown = (event) => {
+    startX.current = event.clientX;
+    startOffset.current = offset;
+    dragged.current = false;
+
+    setDragging(true);
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
+  };
+
+  const handlePointerMove = (event) => {
+    if (startX.current === null) {
+      return;
+    }
+
+    const movement =
+      event.clientX - startX.current;
+
+    if (Math.abs(movement) > 6) {
+      dragged.current = true;
+    }
+
+    let nextOffset =
+      startOffset.current + movement;
+
+    nextOffset = Math.max(
+      -DELETE_WIDTH,
+      Math.min(0, nextOffset)
+    );
+
+    setOffset(nextOffset);
+  };
+
+  const handlePointerUp = () => {
+    if (startX.current === null) {
+      return;
+    }
+
+    if (offset < -40) {
+      setOffset(-DELETE_WIDTH);
+    } else {
+      setOffset(0);
+    }
+
+    startX.current = null;
+    setDragging(false);
+  };
+
+  const handlePointerCancel = () => {
+    startX.current = null;
+    setDragging(false);
+
+    setOffset((currentOffset) =>
+      currentOffset < -40
+        ? -DELETE_WIDTH
+        : 0
+    );
+  };
+
+  const handleRowClick = () => {
+    if (dragged.current) {
+      dragged.current = false;
+      return;
+    }
+
+    if (offset !== 0) {
+      setOffset(0);
+    }
+  };
+
+  const handleDeleteClick = (event) => {
+    event.stopPropagation();
+
+    if (!isOpen) {
+      return;
+    }
+
+    onDelete(transaction);
+  };
+
+  return (
+    <div className="swipe-container">
+      <button
+        className={`delete-reveal ${
+          isOpen ? "delete-active" : ""
+        }`}
+        type="button"
+        onClick={handleDeleteClick}
+        aria-label={`Delete ${transaction.merchant}`}
+        tabIndex={isOpen ? 0 : -1}
+      >
+        <span className="trash-icon" />
+      </button>
+
+      <div
+        className="transaction-row swipe-row"
+        style={{
+          transform: `translate3d(${offset}px, 0, 0)`,
+          transition: dragging
+            ? "none"
+            : "transform 0.2s ease",
+        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onClick={handleRowClick}
+      >
+        <div className="transaction-icon">
+          $
+        </div>
+
+        <div className="transaction-info">
+          <p className="merchant">
+            {transaction.merchant}
+          </p>
+
+          <p className="transaction-meta">
+            {formatDate(transaction.date)}
+
+            {transaction.transactionTime &&
+              ` · ${formatTime(
+                transaction.transactionTime
+              )}`}
+
+            {transaction.cardLast4 &&
+              ` · •••• ${transaction.cardLast4}`}
+          </p>
+        </div>
+
+        <strong className="transaction-amount">
+          -${formatMoney(transaction.amount)}
+        </strong>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [message, setMessage] = useState("");
-  const [safeToSpend, setSafeToSpend] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [updateStatus, setUpdateStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [safeToSpend, setSafeToSpend] =
+    useState(null);
 
-  const [budgetAmount, setBudgetAmount] = useState("");
-  const [budgetStartDate, setBudgetStartDate] = useState(
+  const [transactions, setTransactions] =
+    useState([]);
+
+  const [updateStatus, setUpdateStatus] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [budgetAmount, setBudgetAmount] =
+    useState("");
+
+  const [
+    budgetStartDate,
+    setBudgetStartDate,
+  ] = useState(
     new Date().toLocaleDateString("en-CA")
   );
-  const [savingBudget, setSavingBudget] = useState(false);
-  const [budgetMode, setBudgetMode] = useState(null);
 
-  const [addAmount, setAddAmount] = useState("");
-  const [addingMoney, setAddingMoney] = useState(false);
+  const [savingBudget, setSavingBudget] =
+    useState(false);
+
+  const [budgetMode, setBudgetMode] =
+    useState(null);
+
+  const [addAmount, setAddAmount] =
+    useState("");
+
+  const [addingMoney, setAddingMoney] =
+    useState(false);
+
+  const [
+    transactionToDelete,
+    setTransactionToDelete,
+  ] = useState(null);
+
+  const [
+    deletingTransaction,
+    setDeletingTransaction,
+  ] = useState(false);
 
   const formatMoney = (amount) =>
     Number(amount || 0).toFixed(2);
 
   const formatDate = (date) => {
-    if (!date) return "";
+    if (!date) {
+      return "";
+    }
 
-    const [year, month, day] = date.split("-");
+    const [year, month, day] =
+      date.split("-");
 
     return new Date(
       Number(year),
@@ -40,9 +230,13 @@ function App() {
   };
 
   const formatTime = (transactionTime) => {
-    if (!transactionTime) return "";
+    if (!transactionTime) {
+      return "";
+    }
 
-    return new Date(transactionTime).toLocaleTimeString([], {
+    return new Date(
+      transactionTime
+    ).toLocaleTimeString([], {
       hour: "numeric",
       minute: "2-digit",
     });
@@ -71,7 +265,9 @@ function App() {
     );
 
     if (!response.ok) {
-      throw new Error("Could not load transactions.");
+      throw new Error(
+        "Could not load transactions."
+      );
     }
 
     const data = await response.json();
@@ -86,9 +282,10 @@ function App() {
       try {
         await fetchSafeToSpend();
         await fetchTransactions();
+
         setUpdateStatus("Up to date");
       } catch {
-        // New users may not have a budget yet.
+        // Budget may not exist yet.
       }
     };
 
@@ -98,9 +295,14 @@ function App() {
   const openEditBudget = () => {
     if (safeToSpend) {
       setBudgetAmount(
-        Number(safeToSpend.allocation).toFixed(2)
+        Number(
+          safeToSpend.allocation
+        ).toFixed(2)
       );
-      setBudgetStartDate(safeToSpend.startDate);
+
+      setBudgetStartDate(
+        safeToSpend.startDate
+      );
     }
 
     setBudgetMode("edit");
@@ -138,7 +340,9 @@ function App() {
       }
 
       if (!budgetStartDate) {
-        throw new Error("Choose a start date.");
+        throw new Error(
+          "Choose a start date."
+        );
       }
 
       const response = await fetch(
@@ -146,7 +350,8 @@ function App() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
           body: JSON.stringify({
             amount,
@@ -156,16 +361,20 @@ function App() {
       );
 
       if (!response.ok) {
-        throw new Error("Could not save budget.");
+        throw new Error(
+          "Could not save budget."
+        );
       }
 
       const data = await response.json();
 
       setSafeToSpend(data);
+
       await fetchTransactions();
 
       setBudgetAmount("");
       setBudgetMode(null);
+
       setMessage("Budget updated ✓");
     } catch (error) {
       setMessage(error.message);
@@ -181,7 +390,8 @@ function App() {
       setAddingMoney(true);
       setMessage("Adding money...");
 
-      const amountToAdd = Number(addAmount);
+      const amountToAdd =
+        Number(addAmount);
 
       if (
         addAmount === "" ||
@@ -200,35 +410,43 @@ function App() {
       }
 
       const newBudget =
-        Number(safeToSpend.allocation) +
-        amountToAdd;
+        Number(
+          safeToSpend.allocation
+        ) + amountToAdd;
 
       const response = await fetch(
         `${API_BASE_URL}/api/safe-to-spend/allocation`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
           body: JSON.stringify({
             amount: newBudget,
-            startDate: safeToSpend.startDate,
+            startDate:
+              safeToSpend.startDate,
           }),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Could not add money.");
+        throw new Error(
+          "Could not add money."
+        );
       }
 
       const data = await response.json();
 
       setSafeToSpend(data);
+
       setAddAmount("");
       setBudgetMode(null);
 
       setMessage(
-        `$${formatMoney(amountToAdd)} added to your budget ✓`
+        `$${formatMoney(
+          amountToAdd
+        )} added to your budget ✓`
       );
     } catch (error) {
       setMessage(error.message);
@@ -240,7 +458,10 @@ function App() {
   const handleRefresh = async () => {
     try {
       setLoading(true);
-      setMessage("Checking for new purchases...");
+
+      setMessage(
+        "Checking for new purchases..."
+      );
 
       const response = await fetch(
         `${API_BASE_URL}/api/gmail/refresh`,
@@ -250,26 +471,38 @@ function App() {
       );
 
       if (!response.ok) {
-        throw new Error("Could not check Gmail.");
+        throw new Error(
+          "Could not check Gmail."
+        );
       }
 
-      const refreshData = await response.json();
+      const refreshData =
+        await response.json();
 
       await fetchSafeToSpend();
       await fetchTransactions();
 
-      setUpdateStatus("Updated just now");
+      setUpdateStatus(
+        "Updated just now"
+      );
 
-      if (refreshData.newTransactionCount > 0) {
+      if (
+        refreshData.newTransactionCount > 0
+      ) {
         setMessage(
-          `${refreshData.newTransactionCount} new transaction${
-            refreshData.newTransactionCount === 1
+          `${
+            refreshData.newTransactionCount
+          } new transaction${
+            refreshData.newTransactionCount ===
+            1
               ? ""
               : "s"
           } added.`
         );
       } else {
-        setMessage("No new purchases found.");
+        setMessage(
+          "No new purchases found."
+        );
       }
     } catch (error) {
       setMessage(error.message);
@@ -278,13 +511,82 @@ function App() {
     }
   };
 
+  const openDeleteConfirmation = (
+    transaction
+  ) => {
+    setTransactionToDelete(transaction);
+  };
+
+  const closeDeleteConfirmation = () => {
+    if (deletingTransaction) {
+      return;
+    }
+
+    setTransactionToDelete(null);
+  };
+
+  const handleDeleteTransaction =
+    async () => {
+      if (!transactionToDelete) {
+        return;
+      }
+
+      try {
+        setDeletingTransaction(true);
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/gmail/transactions/${transactionToDelete.id}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Could not delete transaction."
+          );
+        }
+
+        const deletedAmount =
+          transactionToDelete.amount;
+
+        setTransactions(
+          (currentTransactions) =>
+            currentTransactions.filter(
+              (transaction) =>
+                transaction.id !==
+                transactionToDelete.id
+            )
+        );
+
+        setTransactionToDelete(null);
+
+        await fetchSafeToSpend();
+
+        setMessage(
+          `$${formatMoney(
+            deletedAmount
+          )} restored to Safe to Spend ✓`
+        );
+      } catch (error) {
+        setMessage(error.message);
+      } finally {
+        setDeletingTransaction(false);
+      }
+    };
+
   return (
     <main className="app">
       <div className="dashboard">
         <header className="app-header">
           <div>
-            <p className="eyebrow">SPENDLY</p>
-            <h1>Your money, actually usable.</h1>
+            <p className="eyebrow">
+              SPENDLY
+            </p>
+
+            <h1>
+              Your money, actually usable.
+            </h1>
           </div>
 
           <div className="status-dot" />
@@ -307,10 +609,14 @@ function App() {
               </div>
 
               <h2
-               className={
-                  Number(safeToSpend.safeToSpend) > 0
+                className={
+                  Number(
+                    safeToSpend.safeToSpend
+                  ) > 0
                     ? "amount positive"
-                    : Number(safeToSpend.safeToSpend) < 0
+                    : Number(
+                        safeToSpend.safeToSpend
+                      ) < 0
                     ? "amount negative"
                     : "amount"
                 }
@@ -465,8 +771,8 @@ function App() {
             </label>
 
             <p className="date-explanation">
-              Purchases on or after this date
-              count toward Safe to Spend.
+              Purchases on or after this date count
+              toward Safe to Spend.
             </p>
 
             <button
@@ -595,42 +901,17 @@ function App() {
             {transactions.length > 0 ? (
               <div className="transaction-list">
                 {transactions.map(
-                  (transaction, index) => (
-                    <div
-                      className="transaction-row"
-                      key={`${transaction.merchant}-${transaction.transactionTime}-${index}`}
-                    >
-                      <div className="transaction-icon">
-                        $
-                      </div>
-
-                      <div className="transaction-info">
-                        <p className="merchant">
-                          {transaction.merchant}
-                        </p>
-
-                        <p className="transaction-meta">
-                          {formatDate(
-                            transaction.date
-                          )}
-
-                          {transaction.transactionTime &&
-                            ` · ${formatTime(
-                              transaction.transactionTime
-                            )}`}
-
-                          {transaction.cardLast4 &&
-                            ` · •••• ${transaction.cardLast4}`}
-                        </p>
-                      </div>
-
-                      <strong className="transaction-amount">
-                        -$
-                        {formatMoney(
-                          transaction.amount
-                        )}
-                      </strong>
-                    </div>
+                  (transaction) => (
+                    <SwipeableTransaction
+                      key={transaction.id}
+                      transaction={transaction}
+                      formatMoney={formatMoney}
+                      formatDate={formatDate}
+                      formatTime={formatTime}
+                      onDelete={
+                        openDeleteConfirmation
+                      }
+                    />
                   )
                 )}
               </div>
@@ -652,6 +933,72 @@ function App() {
           Gmail transaction alerts connected
         </footer>
       </div>
+
+      {transactionToDelete && (
+        <div
+          className="modal-backdrop"
+          onClick={closeDeleteConfirmation}
+        >
+          <div
+            className="delete-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-title"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="delete-modal-icon">
+              !
+            </div>
+
+            <h2 id="delete-title">
+              Delete this transaction?
+            </h2>
+
+            <p className="delete-merchant">
+              {transactionToDelete.merchant}
+            </p>
+
+            <p className="delete-description">
+              This will add{" "}
+              <strong>
+                $
+                {formatMoney(
+                  transactionToDelete.amount
+                )}
+              </strong>{" "}
+              back to your Safe-to-Spend balance.
+            </p>
+
+            <div className="modal-actions">
+              <button
+                className="modal-cancel"
+                type="button"
+                onClick={
+                  closeDeleteConfirmation
+                }
+                disabled={deletingTransaction}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="modal-delete"
+                type="button"
+                onClick={
+                  handleDeleteTransaction
+                }
+                disabled={deletingTransaction}
+              >
+                {deletingTransaction
+                  ? "Deleting..."
+                  : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

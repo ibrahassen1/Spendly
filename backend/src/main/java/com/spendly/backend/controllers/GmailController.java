@@ -1,17 +1,26 @@
 package com.spendly.backend.controllers;
 
+import java.io.IOException;
+import java.util.List;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.spendly.backend.dto.GmailAlertResponse;
 import com.spendly.backend.dto.GmailRefreshResponse;
+import com.spendly.backend.models.EmailAlertTransaction;
 import com.spendly.backend.models.SpendingAllocation;
 import com.spendly.backend.repositories.EmailAlertTransactionRepository;
 import com.spendly.backend.repositories.SpendingAllocationRepository;
 import com.spendly.backend.services.GmailService;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/gmail")
@@ -98,6 +107,7 @@ public class GmailController {
                         .map(
                                 transaction ->
                                         new GmailAlertResponse(
+                                                transaction.getId(),
                                                 transaction.getMerchant(),
                                                 transaction.getAmount(),
                                                 transaction.getCardLast4(),
@@ -109,5 +119,27 @@ public class GmailController {
                         .toList();
 
         return ResponseEntity.ok(transactions);
+    }
+
+    @DeleteMapping("/transactions/{id}")
+    public ResponseEntity<Void> deleteTransaction(
+            @PathVariable Long id
+    ) {
+        EmailAlertTransaction transaction =
+                emailAlertTransactionRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "Transaction not found"
+                                )
+                        );
+
+        transaction.setStatus("DELETED");
+
+        emailAlertTransactionRepository.save(
+                transaction
+        );
+
+        return ResponseEntity.noContent().build();
     }
 }
