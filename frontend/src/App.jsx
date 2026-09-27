@@ -11,22 +11,19 @@ function SwipeableTransaction({
   formatTime,
   onDelete,
 }) {
-  const DELETE_WIDTH = 82;
-
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
 
-  const startX = useRef(null);
+  const startX = useRef(0);
   const startOffset = useRef(0);
   const dragged = useRef(false);
 
-  const isOpen = offset <= -DELETE_WIDTH;
+  const DELETE_WIDTH = 82;
 
   const handlePointerDown = (event) => {
     startX.current = event.clientX;
     startOffset.current = offset;
     dragged.current = false;
-
     setDragging(true);
 
     event.currentTarget.setPointerCapture(
@@ -35,53 +32,61 @@ function SwipeableTransaction({
   };
 
   const handlePointerMove = (event) => {
-    if (startX.current === null) {
+    if (!dragging) {
       return;
     }
 
-    const movement =
+    const difference =
       event.clientX - startX.current;
 
-    if (Math.abs(movement) > 6) {
+    if (Math.abs(difference) > 5) {
       dragged.current = true;
     }
 
-    let nextOffset =
-      startOffset.current + movement;
+    const nextOffset =
+      startOffset.current + difference;
 
-    nextOffset = Math.max(
-      -DELETE_WIDTH,
-      Math.min(0, nextOffset)
+    setOffset(
+      Math.max(
+        -DELETE_WIDTH,
+        Math.min(0, nextOffset)
+      )
     );
-
-    setOffset(nextOffset);
   };
 
-  const handlePointerUp = () => {
-    if (startX.current === null) {
+  const handlePointerUp = (event) => {
+    if (!dragging) {
       return;
     }
 
-    if (offset < -40) {
+    setDragging(false);
+
+    try {
+      event.currentTarget.releasePointerCapture(
+        event.pointerId
+      );
+    } catch {
+      // Pointer capture may already be released.
+    }
+
+    if (offset < -DELETE_WIDTH / 2) {
       setOffset(-DELETE_WIDTH);
     } else {
       setOffset(0);
     }
-
-    startX.current = null;
-    setDragging(false);
   };
 
   const handlePointerCancel = () => {
-    startX.current = null;
     setDragging(false);
 
-    setOffset((currentOffset) =>
-      currentOffset < -40
-        ? -DELETE_WIDTH
-        : 0
-    );
+    if (offset < -DELETE_WIDTH / 2) {
+      setOffset(-DELETE_WIDTH);
+    } else {
+      setOffset(0);
+    }
   };
+
+  const isOpen = offset <= -DELETE_WIDTH / 2;
 
   const handleRowClick = () => {
     if (dragged.current) {
@@ -132,9 +137,7 @@ function SwipeableTransaction({
         onPointerCancel={handlePointerCancel}
         onClick={handleRowClick}
       >
-        <div className="transaction-icon">
-          $
-        </div>
+        <div className="transaction-icon">$</div>
 
         <div className="transaction-info">
           <p className="merchant">
@@ -164,11 +167,20 @@ function SwipeableTransaction({
 
 function App() {
   const [message, setMessage] = useState("");
+
   const [safeToSpend, setSafeToSpend] =
     useState(null);
 
   const [transactions, setTransactions] =
     useState([]);
+
+  const [
+    moneyAdjustments,
+    setMoneyAdjustments,
+  ] = useState([]);
+
+  const [activityTab, setActivityTab] =
+    useState("transactions");
 
   const [updateStatus, setUpdateStatus] =
     useState("");
@@ -284,11 +296,30 @@ function App() {
     return data;
   };
 
+  const fetchMoneyAdjustments = async () => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/safe-to-spend/adjustments`
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "Could not load money adjustments."
+      );
+    }
+
+    const data = await response.json();
+
+    setMoneyAdjustments(data);
+
+    return data;
+  };
+
   useEffect(() => {
     const loadDashboard = async () => {
       try {
         await fetchSafeToSpend();
         await fetchTransactions();
+        await fetchMoneyAdjustments();
 
         setUpdateStatus("Up to date");
       } catch {
@@ -384,6 +415,7 @@ function App() {
       setSafeToSpend(data);
 
       await fetchTransactions();
+      await fetchMoneyAdjustments();
 
       setBudgetAmount("");
       setBudgetMode(null);
@@ -422,13 +454,8 @@ function App() {
         );
       }
 
-      const newBudget =
-        Number(
-          safeToSpend.allocation
-        ) + amountToAdd;
-
       const response = await fetch(
-        `${API_BASE_URL}/api/safe-to-spend/allocation`,
+        `${API_BASE_URL}/api/safe-to-spend/adjustments`,
         {
           method: "POST",
           headers: {
@@ -436,9 +463,7 @@ function App() {
               "application/json",
           },
           body: JSON.stringify({
-            amount: newBudget,
-            startDate:
-              safeToSpend.startDate,
+            amount: amountToAdd,
           }),
         }
       );
@@ -453,13 +478,17 @@ function App() {
 
       setSafeToSpend(data);
 
+      await fetchMoneyAdjustments();
+
       setAddAmount("");
       setBudgetMode(null);
 
       setMessage(
-        `$${formatMoney(
-          amountToAdd
-        )} added to your budget ✓`
+        `${
+          amountToAdd > 0 ? "+" : "-"
+        }$${formatMoney(
+          Math.abs(amountToAdd)
+        )} adjustment saved ✓`
       );
     } catch (error) {
       setMessage(error.message);
@@ -591,7 +620,6 @@ function App() {
             setUndoTransaction(null);
             undoTimerRef.current = null;
           }, 5000);
-
       } catch (error) {
         setMessage(error.message);
       } finally {
@@ -641,6 +669,13 @@ function App() {
       setMessage(error.message);
     }
   };
+
+  const netMoneyAdded =
+    moneyAdjustments.reduce(
+      (total, adjustment) =>
+        total + Number(adjustment.amount),
+      0
+    );
 
   return (
     <main className="app">
@@ -965,32 +1000,176 @@ function App() {
               )}
             </div>
 
-            {transactions.length > 0 ? (
-              <div className="transaction-list">
-                {transactions.map(
-                  (transaction) => (
-                    <SwipeableTransaction
-                      key={transaction.id}
-                      transaction={transaction}
-                      formatMoney={formatMoney}
-                      formatDate={formatDate}
-                      formatTime={formatTime}
-                      onDelete={
-                        openDeleteConfirmation
-                      }
-                    />
+            <div className="activity-tabs">
+              <button
+                type="button"
+                className={
+                  activityTab ===
+                  "transactions"
+                    ? "activity-tab active"
+                    : "activity-tab"
+                }
+                onClick={() =>
+                  setActivityTab(
+                    "transactions"
                   )
-                )}
-              </div>
-            ) : (
-              <div className="no-transactions">
-                <p>No purchases yet.</p>
+                }
+              >
+                Transactions
+              </button>
 
-                <span>
-                  Refresh after your next card
-                  purchase.
-                </span>
-              </div>
+              <button
+                type="button"
+                className={
+                  activityTab === "money"
+                    ? "activity-tab active"
+                    : "activity-tab"
+                }
+                onClick={() =>
+                  setActivityTab("money")
+                }
+              >
+                Money Added
+              </button>
+            </div>
+
+            {activityTab ===
+            "transactions" ? (
+              transactions.length > 0 ? (
+                <div className="transaction-list">
+                  {transactions.map(
+                    (transaction) => (
+                      <SwipeableTransaction
+                        key={transaction.id}
+                        transaction={transaction}
+                        formatMoney={formatMoney}
+                        formatDate={formatDate}
+                        formatTime={formatTime}
+                        onDelete={
+                          openDeleteConfirmation
+                        }
+                      />
+                    )
+                  )}
+                </div>
+              ) : (
+                <div className="no-transactions">
+                  <p>No purchases yet.</p>
+
+                  <span>
+                    Refresh after your next card
+                    purchase.
+                  </span>
+                </div>
+              )
+            ) : (
+              <>
+                <div className="adjustment-summary">
+                  <span>Net Added</span>
+
+                  <strong
+                    className={
+                      netMoneyAdded >= 0
+                        ? "positive-adjustment"
+                        : "negative-adjustment"
+                    }
+                  >
+                    {netMoneyAdded >= 0
+                      ? "+"
+                      : "-"}
+                    $
+                    {formatMoney(
+                      Math.abs(netMoneyAdded)
+                    )}
+                  </strong>
+                </div>
+
+                {moneyAdjustments.length >
+                0 ? (
+                  <div className="transaction-list">
+                    {moneyAdjustments.map(
+                      (adjustment) => (
+                        <div
+                          className="transaction-row"
+                          key={adjustment.id}
+                        >
+                          <div
+                            className={`transaction-icon ${
+                              Number(
+                                adjustment.amount
+                              ) >= 0
+                                ? "adjustment-icon"
+                                : "removal-icon"
+                            }`}
+                          >
+                            {Number(
+                              adjustment.amount
+                            ) >= 0
+                              ? "+"
+                              : "−"}
+                          </div>
+
+                          <div className="transaction-info">
+                            <p className="merchant">
+                              {Number(
+                                adjustment.amount
+                              ) >= 0
+                                ? "Money Added"
+                                : "Money Removed"}
+                            </p>
+
+                            <p className="transaction-meta">
+                              {formatDate(
+                                adjustment.date
+                              )}
+
+                              {adjustment.createdAt &&
+                                ` · ${formatTime(
+                                  adjustment.createdAt
+                                )}`}
+                            </p>
+                          </div>
+
+                          <strong
+                            className={`transaction-amount ${
+                              Number(
+                                adjustment.amount
+                              ) >= 0
+                                ? "positive-adjustment"
+                                : "negative-adjustment"
+                            }`}
+                          >
+                            {Number(
+                              adjustment.amount
+                            ) >= 0
+                              ? "+"
+                              : "-"}
+                            $
+                            {formatMoney(
+                              Math.abs(
+                                Number(
+                                  adjustment.amount
+                                )
+                              )
+                            )}
+                          </strong>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="no-transactions">
+                    <p>
+                      No money added yet.
+                    </p>
+
+                    <span>
+                      Adjustments made during this
+                      period will appear here.
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </section>
         )}
