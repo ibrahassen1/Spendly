@@ -33,8 +33,10 @@ import com.spendly.backend.dto.GmailAlertResponse;
 import com.spendly.backend.dto.GmailRefreshResponse;
 import com.spendly.backend.models.EmailAlertTransaction;
 import com.spendly.backend.models.GmailCredential;
+import com.spendly.backend.models.SpendingAllocation;
 import com.spendly.backend.repositories.EmailAlertTransactionRepository;
 import com.spendly.backend.repositories.GmailCredentialRepository;
+import com.spendly.backend.repositories.SpendingAllocationRepository;
 
 @Service
 public class GmailService {
@@ -99,6 +101,7 @@ public class GmailService {
 
     private final EmailAlertTransactionRepository emailAlertTransactionRepository;
     private final GmailCredentialRepository gmailCredentialRepository;
+    private final SpendingAllocationRepository spendingAllocationRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -110,13 +113,15 @@ public class GmailService {
             @Value("${google.client-secret}") String clientSecret,
             @Value("${google.redirect-uri}") String redirectUri,
             EmailAlertTransactionRepository emailAlertTransactionRepository,
-            GmailCredentialRepository gmailCredentialRepository
+            GmailCredentialRepository gmailCredentialRepository,
+            SpendingAllocationRepository spendingAllocationRepository
     ) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.redirectUri = redirectUri;
         this.emailAlertTransactionRepository = emailAlertTransactionRepository;
         this.gmailCredentialRepository = gmailCredentialRepository;
+        this.spendingAllocationRepository = spendingAllocationRepository;
     }
 
     public String createAuthorizationUrl() {
@@ -213,12 +218,34 @@ public class GmailService {
         String accessToken =
                 getFreshAccessToken();
 
+        SpendingAllocation allocation =
+                spendingAllocationRepository
+                        .findTopByOrderByCreatedAtDesc()
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "No spending allocation has been set"
+                                )
+                        );
+
+        LocalDate startDate =
+                allocation.getStartDate();
+
+        String gmailAfterDate =
+                startDate
+                        .minusDays(1)
+                        .format(
+                                DateTimeFormatter.ofPattern(
+                                        "yyyy/MM/dd"
+                                )
+                        );
+
         String query =
                 "{from:"
                         + WELLS_FARGO_SENDER
                         + " from:"
                         + DISCOVER_SENDER
-                        + "} newer_than:30d";
+                        + "} after:"
+                        + gmailAfterDate;
 
         String searchUrl =
                 "https://gmail.googleapis.com/gmail/v1/users/me/messages"
@@ -994,8 +1021,7 @@ public class GmailService {
                 || internalDate.isBlank()) {
             return null;
         }
-
-        try {
+         try {
 
             long milliseconds =
                     Long.parseLong(
