@@ -317,9 +317,11 @@ function App() {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        await fetchSafeToSpend();
-        await fetchTransactions();
-        await fetchMoneyAdjustments();
+        await Promise.all([
+          fetchSafeToSpend(),
+          fetchTransactions(),
+          fetchMoneyAdjustments(),
+        ]);
 
         setUpdateStatus("Up to date");
       } catch {
@@ -521,8 +523,10 @@ function App() {
       const refreshData =
         await response.json();
 
-      await fetchSafeToSpend();
-      await fetchTransactions();
+      await Promise.all([
+        fetchSafeToSpend(),
+        fetchTransactions(),
+      ]);
 
       setUpdateStatus(
         "Updated just now"

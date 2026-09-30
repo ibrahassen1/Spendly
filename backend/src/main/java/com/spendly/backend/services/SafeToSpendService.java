@@ -1,21 +1,21 @@
 package com.spendly.backend.services;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.spendly.backend.dto.AllocationRequest;
 import com.spendly.backend.dto.MoneyAdjustmentRequest;
 import com.spendly.backend.dto.MoneyAdjustmentResponse;
 import com.spendly.backend.dto.SafeToSpendResponse;
-import com.spendly.backend.models.EmailAlertTransaction;
 import com.spendly.backend.models.MoneyAdjustment;
 import com.spendly.backend.models.SpendingAllocation;
 import com.spendly.backend.repositories.EmailAlertTransactionRepository;
 import com.spendly.backend.repositories.MoneyAdjustmentRepository;
 import com.spendly.backend.repositories.SpendingAllocationRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
 
 @Service
 public class SafeToSpendService {
@@ -29,9 +29,12 @@ public class SafeToSpendService {
             EmailAlertTransactionRepository emailAlertTransactionRepository,
             MoneyAdjustmentRepository moneyAdjustmentRepository
     ) {
-        this.spendingAllocationRepository = spendingAllocationRepository;
-        this.emailAlertTransactionRepository = emailAlertTransactionRepository;
-        this.moneyAdjustmentRepository = moneyAdjustmentRepository;
+        this.spendingAllocationRepository =
+                spendingAllocationRepository;
+        this.emailAlertTransactionRepository =
+                emailAlertTransactionRepository;
+        this.moneyAdjustmentRepository =
+                moneyAdjustmentRepository;
     }
 
     public SafeToSpendResponse setAllocation(
@@ -150,28 +153,8 @@ public class SafeToSpendService {
 
         BigDecimal countedSpending =
                 emailAlertTransactionRepository
-                        .findAll()
-                        .stream()
-                        .filter(
-                                transaction ->
-                                        !transaction
-                                                .getTransactionDate()
-                                                .isBefore(
-                                                        allocation.getStartDate()
-                                                )
-                        )
-                        .filter(
-                                transaction ->
-                                        "TEMPORARY".equalsIgnoreCase(
-                                                transaction.getStatus()
-                                        )
-                        )
-                        .map(
-                                EmailAlertTransaction::getAmount
-                        )
-                        .reduce(
-                                BigDecimal.ZERO,
-                                BigDecimal::add
+                        .sumTemporarySpendingSince(
+                                allocation.getStartDate()
                         );
 
         BigDecimal safeToSpend =
