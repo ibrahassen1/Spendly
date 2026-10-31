@@ -705,7 +705,7 @@ function App() {
           <button type="button" className={activePage === "safe" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("safe")}>Safe to Spend</button>
         </nav>
 
-        {activePage === "dashboard" && <FinanceDashboard safeToSpend={safeToSpend} />}
+        {activePage === "dashboard" && <FinanceDashboard safeToSpend={safeToSpend} onBudgetSaved={async (updated) => { setSafeToSpend(updated); await Promise.all([fetchTransactions(), fetchMoneyAdjustments()]); }} />}
         {activePage === "safe" && (
           <>
         {safeToSpend ? (
