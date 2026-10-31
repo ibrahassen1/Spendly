@@ -13,10 +13,34 @@ const dollars = (n) => MONEY.format(Number(n) || 0);
 const makeId = () => Math.random().toString(36).slice(2, 10);
 const cleanAmount = (value) => Math.max(0, Number(value) || 0);
 
+function rebalance(categories, changedId, requested) {
+  const next = categories.map((c) => ({ ...c, percent: Math.max(0, Math.min(100, Number(c.percent) || 0)) }));
+  const changed = next.find((c) => c.id === changedId);
+  if (!changed) return next;
+  changed.percent = Math.max(0, Math.min(100, Number(requested) || 0));
+  const otherIds = changedId === "spend"
+    ? next.filter((c) => c.id !== changedId).map((c) => c.id)
+    : ["spend", ...next.filter((c) => c.id !== changedId && c.id !== "spend").map((c) => c.id)];
+  let excess = next.reduce((sum, c) => sum + c.percent, 0) - 100;
+  if (excess > 0) {
+    for (const id of otherIds) {
+      const target = next.find((c) => c.id === id);
+      const reduction = Math.min(excess, target.percent);
+      target.percent -= reduction;
+      excess -= reduction;
+      if (excess <= 0) break;
+    }
+  } else if (excess < 0) {
+    const recipient = next.find((c) => c.id === (changedId === "spend" ? "expenses" : "spend")) || next.find((c) => c.id !== changedId);
+    if (recipient) recipient.percent += -excess;
+  }
+  return next;
+}
+
 function loadPlanner() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (saved && Array.isArray(saved.categories) && Array.isArray(saved.periods)) return saved;
+    if (saved && Array.isArray(saved.categories) && saved.categories.some((c) => c.id === "spend") && Array.isArray(saved.periods) && saved.periods.length) return { ...saved, categories: rebalance(saved.categories, "spend", saved.categories.find((c) => c.id === "spend").percent) };
   } catch { /* corrupted storage: start fresh */ }
   return { categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null };
 }
@@ -95,7 +119,7 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
 
 export default function FinanceDashboard({ safeToSpend }) {
   const [planner, setPlanner] = useState(loadPlanner);
-  const [notice, setNotice] = useState("");
+  
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(planner)); }, [planner]);
   const period = planner.periods.find((p) => p.id === planner.selected) || planner.periods[0];
   const paycheck = cleanAmount(period?.paycheck);
@@ -103,6 +127,7 @@ export default function FinanceDashboard({ safeToSpend }) {
   const percentTotal = categories.reduce((sum, c) => sum + (Number(c.percent) || 0), 0);
   const updatePeriod = (patch) => setPlanner((p) => ({ ...p, periods: p.periods.map((v) => v.id === period.id ? { ...v, ...patch } : v) }));
   const updateCategories = (next) => setPlanner((p) => ({ ...p, categories: next }));
+  const changeAllocation = (id, value) => updateCategories(rebalance(categories, id, value));
   const categoryAmount = (id) => paycheck * (Number(categories.find((c) => c.id === id)?.percent) || 0) / 100;
   const entriesOf = (id) => (period.entries || []).filter((e) => e.categoryId === id);
   const changeEntry = (id, field, value) => updatePeriod({ entries: period.entries.map((e) => e.id === id ? { ...e, [field]: value } : e) });
@@ -139,7 +164,7 @@ export default function FinanceDashboard({ safeToSpend }) {
       </div>
       <div className="finance-toolbar">
         <label>Period name <input value={period.name} onChange={(e) => updatePeriod({ name: e.target.value })} /></label>
-        <label>Paycheck amount ($) <input type="number" min="0" step="0.01" placeholder="Enter paycheck" value={period.paycheck} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
+        <label>Paycheck amount ($) — enter your take-home pay here <input type="number" min="0" step="0.01" placeholder="Enter paycheck" value={period.paycheck} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
       </div>
       <div className="finance-panels">
         <article className="finance-panel">
@@ -151,6 +176,7 @@ export default function FinanceDashboard({ safeToSpend }) {
         <article className="finance-panel">
           <span className="finance-kicker">BUDGET PLAN</span>
           <h3>Adjust your allocations</h3>
+          <p>Changing another category automatically adjusts Safe to Spend. Increasing Safe to Spend reduces other allocations.</p>
           <p className={valid ? "finance-valid" : "finance-warning"}>Allocated: {percentTotal.toFixed(1)}% / 100%</p>
           {categories.map((c, i) => (
             <div className="finance-category" key={c.id}>
@@ -159,10 +185,10 @@ export default function FinanceDashboard({ safeToSpend }) {
                 <strong>{dollars(categoryAmount(c.id))}</strong>
               </div>
               <div className="finance-category-controls">
-                <input aria-label={c.name + " allocation percentage"} type="range" min="0" max="100" step="1" value={c.percent} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, percent: Number(e.target.value) } : x))} />
-                <input aria-label={c.name + " percentage"} type="number" min="0" max="100" step="1" value={c.percent} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, percent: Math.min(100, Math.max(0, Number(e.target.value) || 0)) } : x))} />
+                <input aria-label={c.name + " allocation percentage"} type="range" min="0" max="100" step="1" value={c.percent} onChange={(e) => changeAllocation(c.id, e.target.value)} />
+                <input aria-label={c.name + " percentage"} type="number" min="0" max="100" step="1" value={c.percent} onChange={(e) => changeAllocation(c.id, e.target.value)} />
                 <span>%</span>
-                {customCategories.some((x) => x.id === c.id) && <button type="button" className="finance-remove" onClick={() => updateCategories(categories.filter((x) => x.id !== c.id))}>×</button>}
+                {customCategories.some((x) => x.id === c.id) && <button type="button" className="finance-remove" onClick={() => updateCategories(rebalance(categories.filter((x) => x.id !== c.id), "spend", categories.find((x) => x.id === "spend")?.percent))}>×</button>}
               </div>
             </div>
           ))}
@@ -195,7 +221,6 @@ export default function FinanceDashboard({ safeToSpend }) {
         <p>{dollars(categoryAmount("spend"))} spending allocation − {dollars(spent)} manually recorded discretionary purchases.</p>
         <p>Existing live Spendly balance: {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not set"}. These balances are separate until backend integration.</p>
       </article>
-      {notice && <p role="status">{notice}</p>}
       <p className="finance-local-note">Planner data is saved in this browser only. Export a backup before clearing browser data. Nothing here changes your live Spendly budget yet.</p>
     </section>
   );
