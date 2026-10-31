@@ -117,10 +117,13 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
   );
 }
 
-export default function FinanceDashboard({ safeToSpend }) {
+export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
   const [planner, setPlanner] = useState(loadPlanner);
   
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(planner)); }, [planner]);
+  const [savingLive, setSavingLive] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+  const [periodStart, setPeriodStart] = useState(() => new Date().toLocaleDateString("en-CA"));
   const period = planner.periods.find((p) => p.id === planner.selected) || planner.periods[0];
   const paycheck = cleanAmount(period?.paycheck);
   const categories = planner.categories;
@@ -136,6 +139,35 @@ export default function FinanceDashboard({ safeToSpend }) {
   const spent = entriesOf("spend").reduce((sum, e) => sum + cleanAmount(e.actual), 0);
   const safeBalance = categoryAmount("spend") - spent;
   const valid = Math.abs(percentTotal - 100) < 0.001;
+  const saveLiveBudget = async () => {
+    if (!valid || !period.paycheck || paycheck <= 0 || !periodStart) {
+      setSyncMessage("Enter a positive paycheck, valid date, and allocations totaling 100%.");
+      return;
+    }
+    const allocation = Math.round(categoryAmount("spend") * 100) / 100;
+    const confirmed = window.confirm(
+      "Update your LIVE Safe to Spend allocation to " + dollars(allocation) +
+      " starting " + periodStart + "? Existing Gmail purchases since that date will be counted by the backend. This replaces your current live budget allocation."
+    );
+    if (!confirmed) return;
+    setSavingLive(true);
+    setSyncMessage("");
+    try {
+      const response = await fetch("https://spendly-production-1bdf.up.railway.app/api/safe-to-spend/allocation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: allocation, startDate: periodStart }),
+      });
+      if (!response.ok) throw new Error("The backend could not save the budget.");
+      const updated = await response.json();
+      if (onBudgetSaved) await onBudgetSaved(updated);
+      setSyncMessage("Live budget updated. Both tabs now use the same backend balance.");
+    } catch (error) {
+      setSyncMessage(error.message || "Unable to update live budget.");
+    } finally {
+      setSavingLive(false);
+    }
+  };
   const exportData = () => {
     const blob = new Blob([JSON.stringify(planner, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -165,6 +197,16 @@ export default function FinanceDashboard({ safeToSpend }) {
       <div className="finance-toolbar">
         <label>Period name <input value={period.name} onChange={(e) => updatePeriod({ name: e.target.value })} /></label>
         <label>Paycheck amount ($) — enter your take-home pay here <input type="number" min="0" step="0.01" placeholder="Enter paycheck" value={period.paycheck} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
+      </div>
+      <div className="finance-live-sync">
+        <div>
+          <span className="finance-kicker">SHARED LIVE BUDGET</span>
+          <h3>Sync this paycheck to Safe to Spend</h3>
+          <p>Sets the live spending allocation to {dollars(categoryAmount("spend"))}. Gmail transactions since the selected date are subtracted by your existing backend. The other categories remain in the Dashboard planner.</p>
+          <label>Budget start date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
+        </div>
+        <button type="button" className="finance-add" disabled={savingLive || !valid || paycheck <= 0} onClick={saveLiveBudget}>{savingLive ? "Updating…" : "Update live Safe to Spend"}</button>
+        {syncMessage && <p role="status">{syncMessage}</p>}
       </div>
       <div className="finance-panels">
         <article className="finance-panel">
@@ -219,9 +261,9 @@ export default function FinanceDashboard({ safeToSpend }) {
         <span className="finance-kicker">PROJECTED SAFE TO SPEND · THIS PAYCHECK</span>
         <strong>{valid ? dollars(safeBalance) : "Allocation incomplete"}</strong>
         <p>{dollars(categoryAmount("spend"))} spending allocation − {dollars(spent)} manually recorded discretionary purchases.</p>
-        <p>Existing live Spendly balance: {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not set"}. These balances are separate until backend integration.</p>
+        <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Update live Safe to Spend” above to sync your allocation.</p>
       </article>
-      <p className="finance-local-note">Planner data is saved in this browser only. Export a backup before clearing browser data. Nothing here changes your live Spendly budget yet.</p>
+      <p className="finance-local-note">Planner categories, entries, and pay periods are stored in this browser only. The live budget changes only when you click Update live Safe to Spend. Manually entered purchases are not synced to Gmail transactions.</p>
     </section>
   );
 }
