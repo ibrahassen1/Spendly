@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
+import FinanceDashboard from "./FinanceDashboard.jsx";
 
 const API_BASE_URL =
   "https://spendly-production-1bdf.up.railway.app";
@@ -166,6 +167,7 @@ function SwipeableTransaction({
 }
 
 function App() {
+  const [activePage, setActivePage] = useState("dashboard");
   const [message, setMessage] = useState("");
 
   const [safeToSpend, setSafeToSpend] =
@@ -698,6 +700,14 @@ function App() {
           <div className="status-dot" />
         </header>
 
+        <nav className="page-tabs" aria-label="Spendly pages">
+          <button type="button" className={activePage === "dashboard" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("dashboard")}>Dashboard</button>
+          <button type="button" className={activePage === "safe" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("safe")}>Safe to Spend</button>
+        </nav>
+
+        {activePage === "dashboard" && <FinanceDashboard safeToSpend={safeToSpend} />}
+        {activePage === "safe" && (
+          <>
         {safeToSpend ? (
           <>
             <section className="safe-card">
@@ -1182,6 +1192,8 @@ function App() {
           <span className="footer-dot" />
           Gmail transaction alerts connected
         </footer>
+          </>
+        )}
       </div>
 
       {transactionToDelete && (
