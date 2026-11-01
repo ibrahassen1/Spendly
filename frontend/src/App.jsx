@@ -187,7 +187,7 @@ function App() {
         body: JSON.stringify({ startDate: trackingDate })
       });
       if (!res.ok) throw new Error("Could not update tracking date (" + res.status + ")");
-      await fetchSafeToSpend();
+      await fetchTrackingDate();
       notifyGmail("Tracking starts " + trackingDate + ". Click Sync Purchases to scan.");
     } catch (error) { notifyGmail(error.message); }
     finally { setSavingTrackingDate(false); }
@@ -402,11 +402,17 @@ function App() {
 
     setSafeToSpend(data);
     setBudgetStartDate(data.startDate);
-    setTrackingDate(data.startDate);
 
     return data;
   };
 
+  const fetchTrackingDate = async () => {
+    const response = await accountFetch("/api/safe-to-spend/start-date");
+    if (!response.ok) throw new Error("Unable to load tracking date (" + response.status + ")");
+    const data = await response.json();
+    setTrackingDate(data.startDate);
+    return data.startDate;
+  };
   const fetchTransactions = async () => {
     const response = await accountFetch("/api/gmail/transactions");
     if (!response.ok) {
@@ -875,8 +881,8 @@ function App() {
               </div>
               <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginTop:10}}>
                 <label htmlFor="tracking-start-date" style={{fontSize:12}}>Track purchases from</label>
-                <input id="tracking-start-date" aria-label="Tracking start date" type="date" value={trackingDate || safeToSpend.startDate || ""} max={new Date().toLocaleDateString("en-CA")} onChange={e=>setTrackingDate(e.target.value)} />
-                <button type="button" disabled={savingTrackingDate || !trackingDate || trackingDate===safeToSpend.startDate} onClick={saveTrackingDate}>{savingTrackingDate ? "Saving…" : "Save date"}</button>
+                <input id="tracking-start-date" aria-label="Tracking start date" type="date" value={trackingDate} max={new Date().toLocaleDateString("en-CA")} onChange={e=>setTrackingDate(e.target.value)} />
+                <button type="button" disabled={savingTrackingDate || !trackingDate} onClick={saveTrackingDate}>{savingTrackingDate ? "Saving…" : "Save date"}</button>
               </div>
 
               <h2
