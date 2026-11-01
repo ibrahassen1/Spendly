@@ -142,14 +142,15 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
   const safeBalance = categoryAmount("spend") - spent;
   const valid = Math.abs(percentTotal - 100) < 0.001;
   const saveLiveBudget = async () => {
+    if (period.submitted) { setSyncMessage("This paycheck was already submitted. Create a new period for another paycheck."); return; }
     if (!valid || !period.paycheck || paycheck <= 0 || !periodStart) {
       setSyncMessage("Enter a positive paycheck, valid date, and allocations totaling 100%.");
       return;
     }
     const allocation = Math.round(categoryAmount("spend") * 100) / 100;
+    const goalAllocations = Object.fromEntries(GOAL_IDS.map((id) => [id, Math.round(categoryAmount(id) * 100)]));
     const confirmed = window.confirm(
-      "Update your LIVE Safe to Spend allocation to " + dollars(allocation) +
-      " starting " + periodStart + "? Existing Gmail purchases since that date will be counted by the backend. This replaces your current live budget allocation."
+      "Submit " + dollars(paycheck) + " paycheck? This will replace your LIVE Safe to Spend allocation with " + dollars(allocation) + " starting " + periodStart + ", and add this paycheck to your goal progress. Existing Gmail purchases since that date are counted. This is NOT an additive Safe to Spend deposit."
     );
     if (!confirmed) return;
     setSavingLive(true);
@@ -162,8 +163,12 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       });
       if (!response.ok) throw new Error("The backend could not save the budget.");
       const updated = await response.json();
+      setPlanner((previous) => ({ ...previous,
+        periods: previous.periods.map((item) => item.id === period.id ? { ...item, submitted: true, submittedAt: new Date().toISOString(), submittedAllocations: goalAllocations } : item),
+        goals: Object.fromEntries(GOAL_IDS.map((id) => [id, { ...(previous.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents: (previous.goals?.[id]?.allocatedCents || 0) + goalAllocations[id] }]))
+      }));
       if (onBudgetSaved) await onBudgetSaved(updated);
-      setSyncMessage("Live budget updated. Both tabs now use the same backend balance.");
+      setSyncMessage("Paycheck submitted. Live budget replaced and goal progress updated in this browser.");
     } catch (error) {
       setSyncMessage(error.message || "Unable to update live budget.");
     } finally {
@@ -203,11 +208,11 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       <div className="finance-live-sync">
         <div>
           <span className="finance-kicker">SHARED LIVE BUDGET</span>
-          <h3>Sync this paycheck to Safe to Spend</h3>
-          <p>Sets the live spending allocation to {dollars(categoryAmount("spend"))}. Gmail transactions since the selected date are subtracted by your existing backend. The other categories remain in the Dashboard planner.</p>
+          <h3>Submit paycheck</h3>
+          <p>One submission updates your goal progress and replaces your live Safe to Spend allocation with {dollars(categoryAmount("spend"))}. This is not an additive deposit. Goal progress is currently stored in this browser until secure multi-user database support is ready.</p>
           <label>Budget start date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
         </div>
-        <button type="button" className="finance-add" disabled={savingLive || !valid || paycheck <= 0} onClick={saveLiveBudget}>{savingLive ? "Updating…" : "Update live Safe to Spend"}</button>
+        <button type="button" className="finance-add" disabled={savingLive || period.submitted || !valid || paycheck <= 0} onClick={saveLiveBudget}>{savingLive ? "Submitting…" : period.submitted ? "Paycheck submitted ✓" : "Submit Paycheck"}</button>
         {syncMessage && <p role="status">{syncMessage}</p>}
       </div>
       <div className="finance-panels">
@@ -289,9 +294,9 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         <span className="finance-kicker">PROJECTED SAFE TO SPEND · THIS PAYCHECK</span>
         <strong>{valid ? dollars(safeBalance) : "Allocation incomplete"}</strong>
         <p>{dollars(categoryAmount("spend"))} spending allocation − {dollars(spent)} manually recorded discretionary purchases.</p>
-        <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Update live Safe to Spend” above to sync your allocation.</p>
+        <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Submit Paycheck” above to sync your allocation.</p>
       </article>
-      <p className="finance-local-note">Planner categories, entries, and pay periods are stored in this browser only. The live budget changes only when you click Update live Safe to Spend. Manually entered purchases are not synced to Gmail transactions.</p>
+      <p className="finance-local-note">Planner categories, entries, and pay periods are stored in this browser only. The live budget changes only when you click Submit Paycheck. Goal progress and submission history are currently browser-only; do not treat this as a multi-device or multi-user accounting ledger. Manually entered purchases are not synced to Gmail transactions.</p>
     </section>
   );
 }
