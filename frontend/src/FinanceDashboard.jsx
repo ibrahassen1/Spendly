@@ -194,6 +194,8 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
   const safeBalance = categoryAmount("spend");
   const valid = Math.abs(percentTotal - 100) < 0.001;
   const saveLiveBudget = async () => {
+    setSyncMessage("Submission paused pending account-safe credits.");
+    return;
     if (period.submitted) { setSyncMessage("This paycheck was already submitted. Create a new period for another paycheck."); return; }
     if (!valid || !period.paycheck || paycheck <= 0 || !periodStart) {
       setSyncMessage("Enter a positive paycheck, valid date, and allocations totaling 100%.");
@@ -254,7 +256,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
           <h3>Submit paycheck</h3>
           <p>One submission updates your goal progress and adds {dollars(categoryAmount("spend"))} to your live Safe to Spend allocation. An existing live budget is required. Goal progress is currently stored in this browser until secure multi-user database support is ready.</p>
         </div>
-        <button type="button" className="finance-add" disabled={savingLive || period.submitted || !valid || paycheck <= 0} onClick={saveLiveBudget}>{savingLive ? "Submitting…" : period.submitted ? "Paycheck submitted ✓" : "Submit Paycheck"}</button>
+        <button type="button" className="finance-add" disabled onClick={saveLiveBudget}>{savingLive ? "Submitting…" : period.submitted ? "Paycheck submitted ✓" : "Submit Paycheck"}</button>
         {syncMessage && <p role="status">{syncMessage}</p>}
       </div>
       <div className="finance-panels">
