@@ -25,7 +25,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -38,14 +39,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class AccountGmailSyncController {
     private final JdbcTemplate db;
     private final GmailService parser;
+    private final TransactionTemplate transactions;
     private final ObjectMapper json = new ObjectMapper();
     private final HttpClient http = HttpClient.newHttpClient();
     @Value("${GOOGLE_CLIENT_ID:}") private String clientId;
     @Value("${GOOGLE_CLIENT_SECRET:}") private String clientSecret;
     @Value("${GMAIL_TOKEN_ENCRYPTION_KEY:}") private String encryptionKey;
 
-    public AccountGmailSyncController(JdbcTemplate db,GmailService parser) {
-        this.db=db;this.parser=parser;
+    public AccountGmailSyncController(JdbcTemplate db,GmailService parser,PlatformTransactionManager txManager) {
+        this.db=db;this.parser=parser;this.transactions=new TransactionTemplate(txManager);
     }
     private String decrypt(String ciphertext) throws Exception {
         byte[] key=Base64.getDecoder().decode(encryptionKey);
@@ -114,10 +116,9 @@ public class AccountGmailSyncController {
     public Map<String,Object> sync(@AuthenticationPrincipal Jwt jwt) throws Exception {
         String user=jwt.getSubject();
         List<Candidate> found=candidates(user);
-        return save(user,found);
+        return transactions.execute(status -> save(user,found));
     }
-    @Transactional
-    protected Map<String,Object> save(String user,List<Candidate> found) {
+    private Map<String,Object> save(String user,List<Candidate> found) {
         db.queryForObject("SELECT allocation FROM account_safe_balances WHERE user_id=? FOR UPDATE",BigDecimal.class,user);
         int imported=0;
         for(Candidate c:found) {
