@@ -1151,3 +1151,31 @@ footer { color:#77758e; }
  .safe-card,.empty-hero { border-radius:22px; }
  .safe-card .amount,.empty-hero h2 { font-size:3.55rem; }
 }
+
+/* Rounded, friendly mobile-finance typography and pill-shaped components */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap');
+:root { --round-font:"Nunito",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+body,button,input,select,textarea { font-family:var(--round-font) !important; letter-spacing:-.012em; }
+.app-header h1,.finance-heading h2,.section-heading h2,.activity-header h2,.finance-panel h3,.finance-live-sync h3,.finance-final h3 {
+ font-family:var(--round-font) !important; font-weight:800 !important; letter-spacing:-.04em;
+}
+.app-header h1 { font-size:clamp(1.9rem,3.4vw,2.65rem); line-height:1.13; }
+.safe-card .amount,.empty-hero h2,.finance-final strong,.stat strong,.transaction-amount {
+ font-family:var(--round-font) !important; font-weight:500 !important; letter-spacing:-.045em;
+ font-variant-numeric:tabular-nums lining-nums;
+}
+.safe-card .amount,.empty-hero h2 { font-size:clamp(3.35rem,6vw,4.75rem); }
+.page-tabs,.activity-tabs { border-radius:999px !important; padding:6px !important; }
+.page-tab,.activity-tab { border-radius:999px !important; font-family:var(--round-font) !important; font-weight:750 !important; }
+.safe-card,.empty-hero { border-radius:30px !important; }
+.finance-panel,.finance-live-sync,.finance-final,.budget-card,.transaction-list,.no-transactions,.adjustment-summary { border-radius:25px !important; }
+.stat { border-radius:20px !important; }
+button,.refresh-button,.edit-button,.save-button,.empty-hero button,.finance-add { border-radius:999px !important; font-weight:800 !important; }
+.finance-toolbar input,.finance-toolbar select,.finance-entry input,.finance-custom-name input,.finance-category-controls input[type="number"],.finance-live-sync input,.budget-card input { border-radius:16px !important; }
+.transaction-row { border-radius:18px; }
+.transaction-icon { border-radius:16px; }
+.eyebrow,.label,.finance-kicker { font-family:var(--round-font) !important; font-weight:800; letter-spacing:.095em; }
+@media(max-width:650px) {
+ .safe-card,.empty-hero { border-radius:26px !important; }
+ .finance-panel { border-radius:22px !important; }
+}
