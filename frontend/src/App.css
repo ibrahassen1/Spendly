@@ -1035,3 +1035,26 @@ body { background:#0b0c0b; font-family:Inter,"SF Pro Text",-apple-system,BlinkMa
  .finance-panel { padding:18px; }
  .finance-panels,.finance-tables { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Fintech typography refinement: compact geometric headings and precise financial numerals */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+:root { font-synthesis:none; }
+body,button,input,select,textarea { font-family:"DM Sans",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+.app-header h1,.finance-heading h2,.section-heading h2,.activity-header h2,.finance-panel h3 {
+  font-family:"Manrope","DM Sans",sans-serif;
+  font-weight:700;
+  letter-spacing:-.045em;
+}
+.app-header h1 { font-weight:700; letter-spacing:-.06em; }
+.amount,.safe-card .amount,.empty-hero h2,.finance-final strong,.stat strong,.transaction-amount {
+  font-family:"Manrope","DM Sans",sans-serif;
+  font-variant-numeric:tabular-nums lining-nums;
+  font-feature-settings:"tnum" 1,"lnum" 1;
+  letter-spacing:-.065em;
+  font-weight:650;
+}
+.safe-card .amount,.empty-hero h2 { font-size:clamp(3rem,5.5vw,4.15rem); line-height:1.12; }
+.finance-final strong { font-weight:700; letter-spacing:-.055em; }
+.label,.eyebrow,.finance-kicker { font-family:"DM Sans",sans-serif; letter-spacing:.105em; font-weight:700; }
+.page-tab,.activity-tab,button { font-weight:650; letter-spacing:-.012em; }
+@media(max-width:650px) { .safe-card .amount,.empty-hero h2 { font-size:3.2rem; } }
