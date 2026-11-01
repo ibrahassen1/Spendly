@@ -4,7 +4,7 @@ const money = n => Number(n || 0).toLocaleString('en-US',{style:'currency',curre
 export default function AccountDashboard({getToken}) {
   const [balance,setBalance]=useState(null),[transactions,setTransactions]=useState([]);
   const [amount,setAmount]=useState(''),[startDate,setStartDate]=useState(new Date().toISOString().slice(0,10));
-  const [trackingDate,setTrackingDate]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+  const [trackingDate,setTrackingDate]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[gmailConnected,setGmailConnected]=useState(false);
   const api=useCallback(async (path,options={})=>{
     const token=await getToken();
     if(!token)throw new Error('Sign in again');
@@ -17,9 +17,25 @@ export default function AccountDashboard({getToken}) {
       const b=await api('/balance');setBalance(b);
       const [tx,date]=await Promise.all([api('/transactions'),api('/tracking-date')]);
       setTransactions(tx);setTrackingDate(date.startDate);
+      const status=await api('/gmail/connection/status');setGmailConnected(status.connected);
     } catch(e){setMessage(e.message);}
   },[api]);
   useEffect(()=>{refresh();},[refresh]);
+  const connectGmail=async()=>{
+    setBusy(true);setMessage('');
+    try{
+      const result=await api('/gmail/connection/start',{method:'POST'});
+      window.location.assign(result.authorizationUrl);
+    }catch(e){setMessage(e.message);setBusy(false);}
+  };
+  const syncPurchases=async()=>{
+    setBusy(true);setMessage('Checking Gmail for purchases…');
+    try{
+      const result=await api('/gmail/sync',{method:'POST'});
+      await refresh();
+      setMessage(result.message+' ('+result.imported+' new, '+result.found+' matched)');
+    }catch(e){setMessage(e.message);}finally{setBusy(false);}
+  };
   const setOpening=async e=>{
     e.preventDefault();setBusy(true);setMessage('');
     try {await api('/balance',{method:'POST',body:JSON.stringify({amount:Number(amount),startDate})});await refresh();setMessage('Opening balance saved');}
@@ -44,8 +60,8 @@ export default function AccountDashboard({getToken}) {
       </form>}
       {balance && <section style={{marginTop:24,padding:24,background:'#102431',borderRadius:16}}>
         <h2>Gmail purchases</h2>
-        <button disabled title="Gmail OAuth and account-scoped import are still being connected">Sync Purchases (coming soon)</button>
-        <p style={{color:'#9eb4c1'}}>Sync is disabled until the production Gmail importer is safely connected to your account.</p>
+        {gmailConnected ? <button disabled={busy} onClick={syncPurchases}>Sync Purchases</button> : <button disabled={busy} onClick={connectGmail}>Connect Gmail</button>}
+        <p style={{color:'#9eb4c1'}}>{gmailConnected ? "Gmail connected. Purchases import only when you press Sync." : "Connect your Gmail to import Discover and Wells Fargo purchase alerts."}</p>
         <form onSubmit={saveDate}><label>Track purchases starting <input type="date" value={trackingDate} onChange={e=>setTrackingDate(e.target.value)}/></label>
         <button disabled={busy} style={{marginLeft:12}}>Save date</button></form>
       </section>}
