@@ -179,6 +179,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
   const [goalLedgerView, setGoalLedgerView] = useState(null);
   const [periodStart, setPeriodStart] = useState(() => new Date().toLocaleDateString("en-CA"));
   const period = planner.periods.find((p) => p.id === planner.selected) || planner.periods[0];
+  const paycheckDate = period?.paycheckDate || periodStart;
   const paycheck = cleanAmount(period?.paycheck);
   const categories = planner.categories;
   const percentTotal = categories.reduce((sum, c) => sum + (Number(c.percent) || 0), 0);
@@ -194,7 +195,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
   const valid = Math.abs(percentTotal - 100) < 0.001;
   const saveLiveBudget = async () => {
     if (savingLive || period.submitted) return;
-    if (!cloudReady || !valid || paycheck <= 0 || !periodStart) {
+    if (!cloudReady || !valid || paycheck <= 0 || !paycheckDate) {
       setSyncMessage("Enter a paycheck and a valid allocation totaling 100%.");
       return;
     }
@@ -209,7 +210,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       const response = await fetch(stagingApi + "/api/safe-to-spend/paychecks", {
         method:"POST",
         headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
-        body:JSON.stringify({periodId:period.id,paycheck:Math.round(paycheck*100)/100,safeCredit:allocation,paycheckDate:periodStart})
+        body:JSON.stringify({periodId:period.id,paycheck:Math.round(paycheck*100)/100,safeCredit:allocation,paycheckDate:paycheckDate})
       });
       if (!response.ok) {
         const error = await response.text();
@@ -219,7 +220,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       setPlanner(previous=>({
         ...previous,
         periods:previous.periods.map(item=>item.id===period.id ? {
-          ...item,submitted:true,submittedAt:new Date().toISOString(),
+          ...item,submitted:true,submittedAt:new Date().toISOString(),paycheckDate,
           submittedAllocations:{...goalAllocations,spend:Math.round(allocation*100),
             ...Object.fromEntries(categories.filter(c=>!["spend",...GOAL_IDS].includes(c.id)).map(c=>[c.id,Math.round(categoryAmount(c.id)*100)]))},
           submittedPaycheckCents:Math.round(paycheck*100),
@@ -292,10 +293,10 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         {!period.submitted && <button type="button" className="coach-primary" disabled={!cloudReady || savingLive || !valid || paycheck<=0} onClick={saveLiveBudget}>{savingLive ? "Submitting…" : "Submit paycheck"}</button>}
         {period.submitted && <button type="button" className="finance-add" onClick={() => {
           const id = makeId();
-          setPlanner((p) => ({ ...p, selected: id, periods: [...p.periods, { id, name: "Paycheck " + (p.periods.length + 1), paycheck: "", entries: [] }] }));
+          setPlanner((p) => ({ ...p, selected: id, periods: [...p.periods, { id, name: "Paycheck " + (p.periods.length + 1), paycheck: "", paycheckDate:new Date().toLocaleDateString("en-CA"), entries: [] }] }));
           setPeriodStart(new Date().toLocaleDateString("en-CA"));
           setSyncMessage("");
-        }}>+ Next paycheck</button>}
+        }}>+ Add paycheck</button>}
       </div>}
       {view === "dashboard" && paycheck > 0 && !recommendationDismissed && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
         <span className="finance-kicker">YOUR RECOMMENDED SPLIT</span>
