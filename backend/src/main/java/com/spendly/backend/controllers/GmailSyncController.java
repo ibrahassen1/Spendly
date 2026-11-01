@@ -124,7 +124,7 @@ public class GmailSyncController {
  private record Candidate(String id,String merchant,BigDecimal amount,LocalDate date){}
  private List<Candidate> candidates(String user){
   String token=accessToken(user);
-  LocalDate startDate=db.query("SELECT start_date FROM user_safe_balances WHERE user_id=?",(rs,i)->rs.getDate(1).toLocalDate(),user).stream().findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT,"Submit a paycheck first"));
+  LocalDate startDate=db.query("SELECT COALESCE((SELECT tracking_start_date FROM user_gmail_tracking_settings WHERE user_id=?),start_date) FROM user_safe_balances WHERE user_id=?",(rs,i)->rs.getDate(1).toLocalDate(),user,user).stream().findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT,"Submit a paycheck first"));
   String after=startDate.minusDays(1).format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
   String query=java.net.URLEncoder.encode("{from:"+WELLS_FARGO_SENDER+" from:"+DISCOVER_SENDER+"} after:"+after,StandardCharsets.UTF_8);
   JsonNode list=get(token,"https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=100&q="+query);
@@ -142,7 +142,7 @@ public class GmailSyncController {
     if(sender.contains(WELLS_FARGO_SENDER))alert=parseWellsFargoAlert(content,fallbackDate,fallback);
     else if(sender.contains(DISCOVER_SENDER))alert=parseDiscoverAlert(content,fallbackDate,fallback);
     else continue;
-    if(alert.amount().signum()<=0)continue;
+    if(alert.amount().signum()<=0 || alert.date()==null || alert.date().isBefore(startDate))continue;
     found.add(new Candidate(id,alert.merchant(),alert.amount(),alert.date()));
    }catch(RuntimeException ex){System.err.println("Failed to parse Gmail message "+id+": "+ex.getMessage());}
   }
