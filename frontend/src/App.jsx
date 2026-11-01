@@ -1239,7 +1239,7 @@ function App() {
         </footer>
           </>
         )}
-      </div>
+      </div>}
 
       {transactionToDelete && (
         <div
@@ -1346,7 +1346,6 @@ function App() {
           <span>Goals</span>
         </button>
       </nav>
-      </div>}
       {gmailMessage && <div className="gmail-toast" role="status">{gmailMessage}</div>}
     </main>
   );
