@@ -1621,3 +1621,12 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 .paycheck-ledger th { color: #c5b7ff; font-size: .82rem; font-weight: 600; }
 .paycheck-ledger td { color: #f6f2ff; }
 .paycheck-ledger td:last-child { color: #c6ffb3; font-weight: 600; }
+
+
+/* First-sign-in Gmail permission screen */
+.gmail-onboarding { min-height: 100dvh; display:grid; place-items:center; padding:24px; box-sizing:border-box; background:radial-gradient(circle at 50% 0%,#382b78 0%,#131020 55%,#0b0915 100%); }
+.gmail-onboarding-card { width:min(100%,510px); padding:clamp(24px,5vw,42px); border:1px solid rgba(193,177,255,.24); border-radius:28px; background:#191529; box-shadow:0 24px 80px rgba(0,0,0,.3); color:#f8f5ff; display:flex; flex-direction:column; gap:18px; }
+.gmail-onboarding-card h1 { margin:0; font-size:clamp(1.9rem,5vw,2.8rem); line-height:1.15; }
+.gmail-onboarding-card p { margin:0; color:#d2cbe7; line-height:1.65; }
+.gmail-onboarding-card .gmail-onboarding-privacy { font-size:.87rem; color:#bcaeea; }
+.gmail-onboarding-card button { width:100%; min-height:50px; margin:0; }
