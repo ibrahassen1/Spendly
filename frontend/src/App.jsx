@@ -770,33 +770,6 @@ function App() {
               </div>
             </section>
 
-            <section className="actions">
-              <button
-                className="refresh-button"
-                onClick={handleRefresh}
-                disabled={true}
-              >
-                <span
-                  className={
-                    loading ? "spin" : ""
-                  }
-                >
-                  ↻
-                </span>
-
-                {loading
-                  ? "Checking purchases..."
-                  : "Refresh Transactions (coming soon)"}
-              </button>
-
-              <button
-                className="edit-button"
-                onClick={openAddMoney}
-              >
-                + Add Money
-              </button>
-
-            </section>
           </>
         ) : (
           <section className="empty-hero">
@@ -812,6 +785,17 @@ function App() {
 
           </section>
         )}
+
+        <section className="actions">
+          <button type="button" className="refresh-button" disabled title="Gmail transaction syncing is not yet enabled for individual accounts">
+            ↻ Refresh Transactions (coming soon)
+          </button>
+          {safeToSpend && (
+            <button type="button" className="edit-button" onClick={openAddMoney}>
+              + Add Money
+            </button>
+          )}
+        </section>
 
         {budgetMode === "add" &&
           safeToSpend && (
