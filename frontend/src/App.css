@@ -1301,3 +1301,22 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 .finance-paycheck-status-value { color:#f4f1ff; font-size:.9rem; font-weight:500; }
 .finance-paycheck-status .finance-submit-note { font-size:.72rem; color:#a5a0bd; }
 @media(max-width:650px) { .finance-paycheck-status { padding:11px 14px; margin:8px 0 20px; } }
+
+/* Allocation overview: independent card heights, compact chart, readable controls */
+.finance-panels { align-items:start !important; }
+.finance-panels > .finance-panel { align-self:start !important; min-height:0 !important; }
+.finance-panels > .finance-panel:first-child { display:flex; flex-direction:column; gap:8px; padding-bottom:22px; }
+.finance-panels > .finance-panel:first-child .allocation-svg { display:block; width:100%; max-width:420px; height:auto; max-height:310px; margin:0 auto; }
+.finance-panels > .finance-panel:nth-child(2) { padding-bottom:24px; }
+.finance-panels > .finance-panel:nth-child(2) > p:first-of-type { max-width:480px; font-size:.84rem; line-height:1.5; }
+.finance-category { padding:13px 0 !important; }
+.finance-category-top { margin-bottom:8px; }
+.finance-category-controls { gap:10px; }
+.finance-category-controls input[type="number"] { max-width:68px; }
+@media(min-width:900px) {
+ .finance-panels { grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr) !important; gap:18px; }
+}
+@media(max-width:899px) {
+ .finance-panels { grid-template-columns:minmax(0,1fr) !important; }
+ .finance-panels > .finance-panel:first-child .allocation-svg { max-width:370px; max-height:270px; }
+}
