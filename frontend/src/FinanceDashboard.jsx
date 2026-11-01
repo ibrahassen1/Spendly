@@ -396,8 +396,8 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       {view === "dashboard" && (
         <>
       <div className="finance-tables">
-        {["expenses", "investments", "savings"].map((id) => (
-          <FinanceTable key={id} title={id==="expenses" ? "Recurring Monthly Expenses" : (categories.find((c) => c.id === id)?.name || id)} allocated={categoryAmount(id)} entries={entriesOf(id)} onAdd={() => addEntry(id)} onChange={changeEntry} onRemove={removeEntry} />
+        {categories.filter((category) => category.id !== "spend").map((category) => (
+          <FinanceTable key={category.id} title={category.id === "expenses" ? "Recurring Monthly Expenses" : category.name} allocated={categoryAmount(category.id)} entries={entriesOf(category.id)} onAdd={() => addEntry(category.id)} onChange={changeEntry} onRemove={removeEntry} />
         ))}
       </div>
       <article className="finance-final">
