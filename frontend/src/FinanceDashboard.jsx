@@ -139,8 +139,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
   const changeEntry = (id, field, value) => updatePeriod({ entries: period.entries.map((e) => e.id === id ? { ...e, [field]: value } : e) });
   const removeEntry = (id) => updatePeriod({ entries: period.entries.filter((e) => e.id !== id) });
   const addEntry = (id) => updatePeriod({ entries: [...period.entries, { id: makeId(), categoryId: id, name: "", planned: "", actual: "" }] });
-  const spent = entriesOf("spend").reduce((sum, e) => sum + cleanAmount(e.actual), 0);
-  const safeBalance = categoryAmount("spend") - spent;
+  const safeBalance = categoryAmount("spend");
   const valid = Math.abs(percentTotal - 100) < 0.001;
   const saveLiveBudget = async () => {
     if (period.submitted) { setSyncMessage("This paycheck was already submitted. Create a new period for another paycheck."); return; }
@@ -302,27 +301,13 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
           <FinanceTable key={id} title={categories.find((c) => c.id === id)?.name || id} allocated={categoryAmount(id)} entries={entriesOf(id)} onAdd={() => addEntry(id)} onChange={changeEntry} onRemove={removeEntry} />
         ))}
       </div>
-      <article className="finance-panel">
-        <span className="finance-kicker">DISCRETIONARY PURCHASES</span>
-        <h3>Spending ledger</h3>
-        <p>Enter discretionary purchases here for now. Automatic Gmail categorization will be connected later.</p>
-        {entriesOf("spend").map((e) => (
-          <div className="finance-entry" key={e.id}>
-            <input aria-label="Purchase name" placeholder="Purchase" value={e.name} onChange={(event) => changeEntry(e.id, "name", event.target.value)} />
-            <span></span>
-            <input aria-label="Purchase amount" type="number" min="0" step="0.01" placeholder="Amount" value={e.actual} onChange={(event) => changeEntry(e.id, "actual", event.target.value)} />
-            <button type="button" className="finance-remove" onClick={() => removeEntry(e.id)}>×</button>
-          </div>
-        ))}
-        <button type="button" className="finance-add" onClick={() => addEntry("spend")}>+ Add purchase</button>
-      </article>
       <article className="finance-final">
         <span className="finance-kicker">PROJECTED SAFE TO SPEND · THIS PAYCHECK</span>
         <strong>{valid ? dollars(safeBalance) : "Allocation incomplete"}</strong>
-        <p>{dollars(categoryAmount("spend"))} spending allocation − {dollars(spent)} manually recorded discretionary purchases.</p>
+        <p>{dollars(categoryAmount("spend"))} spending allocation for this paycheck.</p>
         <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Submit Paycheck” above to sync your allocation.</p>
       </article>
-      <p className="finance-local-note">Planner categories, entries, and pay periods are stored in this browser only. The live budget changes only when you click Submit Paycheck. Goal progress and submission history are currently browser-only; do not treat this as a multi-device or multi-user accounting ledger. Manually entered purchases are not synced to Gmail transactions.</p>
+      <p className="finance-local-note">Planner categories, entries, and pay periods are stored in this browser only. The live budget changes only when you click Submit Paycheck. Goal progress and submission history are currently browser-only; do not treat this as a multi-device or multi-user accounting ledger.</p>
     </section>
   );
 }
