@@ -201,7 +201,7 @@ function App() {
   const notifyGmail = (message) => {
     setGmailMessage(message);
     if (gmailToastTimer.current) clearTimeout(gmailToastTimer.current);
-    gmailToastTimer.current = setTimeout(() => setGmailMessage(""), 4000);
+    gmailToastTimer.current = setTimeout(() => setGmailMessage(""), 3000);
   };
   useEffect(() => () => { if (gmailToastTimer.current) clearTimeout(gmailToastTimer.current); }, []);
   useEffect(() => {
@@ -278,6 +278,7 @@ function App() {
   }, [activePage, isLoaded, isSignedIn, userId]);
 
   const [message, setMessage] = useState("");
+  useEffect(() => { if (!message || message === "Saving budget..." || message === "Adding money...") return; const t = setTimeout(() => setMessage(""), 3000); return () => clearTimeout(t); }, [message]);
 
   const [safeToSpend, setSafeToSpend] =
     useState(null);
@@ -347,7 +348,8 @@ function App() {
     }
 
     const [year, month, day] =
-      date.split("-");
+      String(date).slice(0,10).split("-");
+    if (![year, month, day].every(part => /^\d+$/.test(part))) return "";
 
     return new Date(
       Number(year),
