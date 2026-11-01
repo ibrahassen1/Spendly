@@ -192,20 +192,22 @@ function App() {
     } catch (error) { notifyGmail(error.message); }
     finally { setSavingTrackingDate(false); }
   };
+  const [syncResult, setSyncResult] = useState("");
   const [gmailSyncBusy, setGmailSyncBusy] = useState(false);
   const gmailSyncInFlight = useRef(false);
   const syncGmail = async () => {
     if (gmailSyncInFlight.current) return;
     gmailSyncInFlight.current = true;
     setGmailSyncBusy(true);
+    setSyncResult("");
     try {
       const res = await accountFetch("/api/gmail/transactions/sync", {method:"POST"});
       if (!res.ok) throw new Error("Gmail sync unavailable (" + res.status + ")");
       const result = await res.json();
       await fetchSafeToSpend();
       await fetchTransactions();
-      if (result.imported > 0) notifyGmail("Automatically deducted " + result.imported + " purchase(s) · $" + result.deducted);
-    } catch (e) { notifyGmail(e.message); }
+      setSyncResult(result.imported > 0 ? `Found ${result.imported} new transaction(s). Deducted ${result.deducted}.` : result.found > 0 ? "No new transactions. Matching alerts were already synced." : "No transactions found for the selected date.");
+    } catch (e) { setSyncResult("Sync failed: " + e.message); }
     finally { gmailSyncInFlight.current = false; setGmailSyncBusy(false); }
   };
   const [gmailConnection, setGmailConnection] = useState(null);
@@ -278,7 +280,7 @@ function App() {
   useEffect(() => {
     if (activePage !== "safe" || !isLoaded || !isSignedIn || !userId) return;
     let cancelled = false;
-    loadPaycheckLedger();
+    fetchTrackingDate().catch(() => {});
     (async () => {
       try {
         const response = await accountFetch("/api/safe-to-spend");
@@ -446,10 +448,12 @@ function App() {
     setSafeToSpend(null);
     setMoneyAdjustments([]);
     setTransactions([]);
+    setTrackingDate("");
     const loadDashboard = async () => {
       try {
         await Promise.all([
           fetchSafeToSpend(),
+          fetchTrackingDate(),
           fetchTransactions(),
           fetchMoneyAdjustments(),
         ]);
@@ -879,11 +883,7 @@ function App() {
                   Since{" "}{formatDate(safeToSpend.startDate)}
                 </span>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginTop:10}}>
-                <label htmlFor="tracking-start-date" style={{fontSize:12}}>Track purchases from</label>
-                <input id="tracking-start-date" aria-label="Tracking start date" type="date" value={trackingDate} max={new Date().toLocaleDateString("en-CA")} onChange={e=>setTrackingDate(e.target.value)} />
-                <button type="button" disabled={savingTrackingDate || !trackingDate} onClick={saveTrackingDate}>{savingTrackingDate ? "Saving…" : "Save date"}</button>
-              </div>
+
 
               <h2
                 className={
@@ -951,7 +951,13 @@ function App() {
             {gmailSyncBusy ? "Syncing purchases…" : "↻ Sync Purchases"}
           </button>
           {safeToSpend && <button type="button" className="edit-button" onClick={openAddMoney}>+ Add Money</button>}
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginTop:10}}>
+                <label htmlFor="tracking-start-date" style={{fontSize:12}}>Track purchases from</label>
+                <input id="tracking-start-date" aria-label="Tracking start date" type="date" value={trackingDate} max={new Date().toLocaleDateString("en-CA")} onChange={e=>setTrackingDate(e.target.value)} />
+                <button type="button" disabled={savingTrackingDate || !trackingDate} onClick={saveTrackingDate}>{savingTrackingDate ? "Saving…" : "Save date"}</button>
+              </div>
         </section>
+        {syncResult && <p className="message safe-status-message" role="status">{syncResult}</p>}
 
         {budgetMode === "add" &&
           safeToSpend && (
@@ -1031,20 +1037,7 @@ function App() {
           </p>
         )}
 
-        <section className="budget-card paycheck-ledger" aria-label="Paycheck ledger">
-          <h3>Paycheck Ledger</h3>
-          <p className="date-explanation">Paychecks credited to this account. Safe to Spend shows the amount allocated, not your entire paycheck.</p>
-          {paycheckLedger.length ? <div className="paycheck-ledger-scroll">
-            <table>
-              <thead><tr><th>Paycheck date</th><th>Paycheck</th><th>Safe to Spend added</th></tr></thead>
-              <tbody>{paycheckLedger.map(p => <tr key={p.periodId}>
-                <td>{formatDate(p.paycheckDate)}</td>
-                <td>${formatMoney(p.paycheck)}</td>
-                <td>+${formatMoney(p.safeCredit)}</td>
-              </tr>)}</tbody>
-            </table>
-          </div> : <p>No paycheck credits recorded yet.</p>}
-        </section>
+
         {(
           <section className="activity safe-activity">
             <div className="activity-header">
