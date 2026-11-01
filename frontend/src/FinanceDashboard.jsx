@@ -120,7 +120,7 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
   );
 }
 
-export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
+export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "dashboard" }) {
   const { getToken, userId } = useAuth();
   const [planner, setPlanner] = useState(loadPlanner);
   const [cloudReady, setCloudReady] = useState(false);
@@ -250,6 +250,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
           setSyncMessage("");
         }}>+ Next paycheck</button>}
       </div>
+      {view === "dashboard" && <>
       <div className="finance-paycheck-status" role="status">
         <span className="finance-paycheck-status-label">PAYCHECK</span>
         <span className="finance-paycheck-status-value">
@@ -258,6 +259,9 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         {!period.submitted && <span className="finance-submit-note">Paycheck crediting is temporarily paused.</span>}
         {syncMessage && <span className="finance-submit-note">{syncMessage}</span>}
       </div>
+      </>}
+      {view === "dashboard" && (
+        <>
       <div className="finance-panels">
         <article className="finance-panel">
           <span className="finance-kicker">PAYCHECK ALLOCATION</span>
@@ -288,6 +292,9 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
           {customCategories.map((c) => <label className="finance-custom-name" key={c.id}>Rename {c.name}<input value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></label>)}
         </article>
       </div>
+        </>
+      )}
+      {view === "goals" && (
       <article className="finance-panel" style={{ marginBottom: 20 }}>
         <span className="finance-kicker">FINANCIAL GOALS</span>
         <h3>{goalLedgerView ? "Allocation history" : "Track your progress"}</h3>
@@ -339,6 +346,9 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         })}
         </>}
       </article>
+      )}
+      {view === "dashboard" && (
+        <>
       <div className="finance-tables">
         {["expenses", "investments", "savings"].map((id) => (
           <FinanceTable key={id} title={categories.find((c) => c.id === id)?.name || id} allocated={categoryAmount(id)} entries={entriesOf(id)} onAdd={() => addEntry(id)} onChange={changeEntry} onRemove={removeEntry} />
@@ -351,6 +361,8 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Submit Paycheck” above to sync your allocation.</p>
       </article>
       <p className="finance-local-note">Planner history is synced to staging PostgreSQL when the save status confirms success. Live Safe to Spend and Gmail transactions still use the shared production backend; do not invite other users yet.</p>
+        </>
+      )}
       </fieldset>
     </section>
   );
