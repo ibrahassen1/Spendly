@@ -774,7 +774,7 @@ function App() {
               <button
                 className="refresh-button"
                 onClick={handleRefresh}
-                disabled={loading}
+                disabled={true}
               >
                 <span
                   className={
@@ -786,7 +786,7 @@ function App() {
 
                 {loading
                   ? "Checking purchases..."
-                  : "Refresh Transactions"}
+                  : "Refresh Transactions (coming soon)"}
               </button>
 
               <button
@@ -796,12 +796,6 @@ function App() {
                 + Add Money
               </button>
 
-              <button
-                className="edit-button"
-                onClick={openEditBudget}
-              >
-                Edit Budget
-              </button>
             </section>
           </>
         ) : (
@@ -813,107 +807,10 @@ function App() {
             <h2>$0.00</h2>
 
             <p>
-              Set how much you can spend and when
-              this budget started.
+              Your balance will appear here once your account is initialized from your paycheck history.
             </p>
 
-            <button
-              onClick={() =>
-                setBudgetMode("edit")
-              }
-            >
-              Set Budget
-            </button>
           </section>
-        )}
-
-        {(budgetMode === "edit" ||
-          !safeToSpend) && (
-          <form
-            className="budget-card"
-            onSubmit={handleSetBudget}
-          >
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">
-                  BUDGET & DATA
-                </p>
-
-                <h2>
-                  {safeToSpend
-                    ? "Set budget"
-                    : "Set your budget"}
-                </h2>
-              </div>
-            </div>
-
-            <label>
-              Spendable amount
-
-              <div className="money-input">
-                <span>$</span>
-
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="100.00"
-                  value={budgetAmount}
-                  onChange={(event) =>
-                    setBudgetAmount(
-                      event.target.value
-                    )
-                  }
-                  required
-                />
-              </div>
-            </label>
-
-            <label>
-              Start date
-
-              <input
-                type="date"
-                value={budgetStartDate}
-                onChange={(event) =>
-                  setBudgetStartDate(
-                    event.target.value
-                  )
-                }
-                required
-              />
-            </label>
-
-            <p className="date-explanation">
-              Purchases on or after this date count
-              toward Safe to Spend.
-            </p>
-
-            <button
-              className="save-button"
-              type="submit"
-              disabled={savingBudget}
-            >
-              {savingBudget
-                ? "Saving..."
-                : safeToSpend
-                ? "Set Budget"
-                : "Create Budget"}
-            </button>
-
-            {safeToSpend && (
-              <button
-                className="edit-button"
-                type="button"
-                onClick={closeBudgetPanel}
-                style={{
-                  width: "100%",
-                  marginTop: "10px",
-                }}
-              >
-                Cancel
-              </button>
-            )}
-          </form>
         )}
 
         {budgetMode === "add" &&
@@ -993,7 +890,7 @@ function App() {
           </p>
         )}
 
-        {safeToSpend && (
+        {(
           <section className="activity">
             <div className="activity-header">
               <div>
@@ -1065,11 +962,10 @@ function App() {
                 </div>
               ) : (
                 <div className="no-transactions">
-                  <p>No purchases yet.</p>
+                  <p>Transaction syncing is paused.</p>
 
                   <span>
-                    Refresh after your next card
-                    purchase.
+                    Account-specific Gmail syncing is being built.
                   </span>
                 </div>
               )
@@ -1187,7 +1083,7 @@ function App() {
 
         <footer>
           <span className="footer-dot" />
-          Gmail transaction alerts connected
+          Gmail transaction syncing paused for account security
         </footer>
           </>
         )}
