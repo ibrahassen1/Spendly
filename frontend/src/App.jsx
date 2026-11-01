@@ -430,6 +430,28 @@ function App() {
     }
   };
 
+  const restoreOpeningBalance = async () => {
+    const raw = window.prompt("One-time migration only: enter your verified remaining balance from the old Spendly app (not your paycheck amount).");
+    if (raw === null) return;
+    const amount = Number(raw);
+    if (!raw.trim() || !Number.isFinite(amount) || amount < 0 || !/^\\d+(\\.\\d{1,2})?$/.test(raw.trim())) {
+      setMessage("Enter a valid balance with at most two decimal places.");
+      return;
+    }
+    if (!window.confirm("Restore $" + amount.toFixed(2) + " as your one-time opening balance? Do not resubmit your paycheck. This cannot be repeated.")) return;
+    try {
+      const response = await accountFetch("/api/safe-to-spend/opening-balance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, startDate: new Date().toLocaleDateString("en-CA") })
+      });
+      if (!response.ok) throw new Error(response.status === 409 ? "Opening balance already exists. Refresh the page." : "Unable to restore balance. Check staging backend deployment.");
+      setSafeToSpend(await response.json());
+      await fetchMoneyAdjustments();
+      setMessage("Opening balance restored to your account.");
+    } catch (error) { setMessage(error.message); }
+  };
+
   const handleAddMoney = async (event) => {
     event.preventDefault();
 
@@ -451,9 +473,7 @@ function App() {
       }
 
       if (!safeToSpend) {
-        throw new Error(
-          "Set a budget before adding money."
-        );
+        throw new Error("Restore an opening balance or submit a paycheck first.");
       }
 
       const response = await accountFetch(`/api/safe-to-spend/adjustments`,
@@ -780,9 +800,9 @@ function App() {
             <h2>$0.00</h2>
 
             <p>
-              Your balance will appear here once your account is initialized from your paycheck history.
+              Your paycheck allocations will appear here once credited. Existing users can restore a one-time opening balance.
             </p>
-
+            <button type="button" onClick={restoreOpeningBalance}>Restore existing balance (one time)</button>
           </section>
         )}
 
