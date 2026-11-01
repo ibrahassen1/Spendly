@@ -835,6 +835,17 @@ function App() {
           </section>
         )}
 
+        <section className="budget-card" style={{marginTop:18,marginBottom:18,padding:22}}>
+          <p className="eyebrow">GMAIL CONNECTION</p>
+          <h3 style={{margin:"8px 0 12px"}}>{gmailConnection?.connected ? "Gmail connected" : "Connect your Gmail"}</h3>
+          <p style={{opacity:.75,marginBottom:16}}>{gmailConnection?.connected
+            ? "Your Gmail is connected. Automatic transaction syncing is not enabled yet."
+            : "Connect your own Google account. No emails will be imported or deducted yet."}</p>
+          {gmailConnection?.connected
+            ? <button type="button" className="edit-button" disabled={gmailBusy} onClick={disconnectGmail}>Disconnect Gmail</button>
+            : <button type="button" className="edit-button" disabled={gmailBusy} onClick={connectGmail}>{gmailBusy?"Connecting…":"Connect Gmail"}</button>}
+          {gmailMessage && <p role="status" style={{marginTop:12}}>{gmailMessage}</p>}
+        </section>
         <section className="actions safe-quick-actions">
           <button type="button" className="refresh-button" disabled title="Gmail transaction syncing is not yet enabled for individual accounts">
             ↻ Refresh Transactions (coming soon)
