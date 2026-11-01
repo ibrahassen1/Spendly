@@ -60,7 +60,7 @@ public class SafeToSpendController {
  }
  @GetMapping("/paychecks")
  public List<Map<String,Object>> paycheckHistory(@AuthenticationPrincipal Jwt jwt){
-  return jdbc.queryForList("SELECT period_id AS \"periodId\", paycheck, safe_credit AS \"safeCredit\", paycheck_date AS \"paycheckDate\", created_at AS \"creditedAt\" FROM user_paycheck_credits WHERE user_id=? ORDER BY paycheck_date DESC NULLS LAST, created_at DESC",jwt.getSubject());
+  return jdbc.queryForList("SELECT period_id AS \"periodId\", paycheck, safe_credit AS \"safeCredit\", paycheck_date AS \"paycheckDate\", submitted_at AS \"creditedAt\" FROM user_paycheck_credits WHERE user_id=? ORDER BY paycheck_date DESC NULLS LAST, submitted_at DESC",jwt.getSubject());
  }
  @GetMapping public SafeToSpendResponse get(@AuthenticationPrincipal Jwt jwt){return response(current(jwt));}
  @PostMapping("/opening-balance") @Transactional
