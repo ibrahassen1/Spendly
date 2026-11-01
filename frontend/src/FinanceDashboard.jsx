@@ -164,7 +164,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       if (!response.ok) throw new Error("Could not credit Safe to Spend. Make sure a live budget already exists.");
       const updated = await response.json();
       setPlanner((previous) => ({ ...previous,
-        periods: previous.periods.map((item) => item.id === period.id ? { ...item, submitted: true, submittedAt: new Date().toISOString(), submittedAllocations: goalAllocations } : item),
+        periods: previous.periods.map((item) => item.id === period.id ? { ...item, submitted: true, submittedAt: new Date().toISOString(), submittedAllocations: { ...goalAllocations, spend: Math.round(allocation * 100), ...Object.fromEntries(categories.filter((c) => !["spend", ...GOAL_IDS].includes(c.id)).map((c) => [c.id, Math.round(categoryAmount(c.id) * 100)])) }, submittedPaycheckCents: Math.round(paycheck * 100), submittedCategoryNames: Object.fromEntries(categories.map((c) => [c.id, c.name])) } : item),
         goals: Object.fromEntries(GOAL_IDS.map((id) => [id, { ...(previous.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents: (previous.goals?.[id]?.allocatedCents || 0) + goalAllocations[id] }]))
       }));
       if (onBudgetSaved) await onBudgetSaved(updated);
@@ -270,6 +270,30 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
             </div>
           </div>;
         })}
+      </article>
+      <article className="finance-panel" style={{ marginBottom: 20 }}>
+        <span className="finance-kicker">ALLOCATION LEDGER</span>
+        <h3>Submitted paycheck history</h3>
+        <p>Each submission records how much you allocated to Expenses, Investments, Savings, and Safe to Spend. Resetting a goal does not erase this history.</p>
+        {[...planner.periods].filter((p) => p.submitted).reverse().map((p) => {
+          const allocations = p.submittedAllocations || {};
+          const entries = Object.entries(allocations);
+          return <details key={p.id} style={{ borderTop: "1px solid #273541", padding: "14px 0" }}>
+            <summary style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <span><strong>{p.name}</strong><span style={{ display: "block", opacity: .7, fontSize: 12 }}>{p.submittedAt ? new Date(p.submittedAt).toLocaleString() : "Submitted"}</span></span>
+              <strong>{dollars((p.submittedPaycheckCents ?? Math.round(cleanAmount(p.paycheck) * 100)) / 100)}</strong>
+            </summary>
+            <div style={{ paddingTop: 12 }}>
+              {entries.map(([id, cents]) => <div key={id} className="finance-category-top" style={{ padding: "5px 0" }}>
+                <span>{p.submittedCategoryNames?.[id] || ({ spend: "Safe to Spend", expenses: "Expenses", investments: "Investments", savings: "Savings" }[id] || id)}</span>
+                <strong>{dollars((Number(cents) || 0) / 100)}</strong>
+              </div>)}
+              {!Object.hasOwn(allocations, "spend") && <p style={{ opacity: .7, fontSize: 12 }}>Safe-to-Spend allocation was not recorded for this older submission.</p>}
+            </div>
+          </details>;
+        })}
+        {!planner.periods.some((p) => p.submitted) && <p>No paychecks submitted yet. Your first submission will appear here.</p>}
+        <p style={{ opacity: .7, fontSize: 12 }}>History is currently saved only in this browser. Allocations are planned amounts, not proof of payment or investment.</p>
       </article>
       <div className="finance-tables">
         {["expenses", "investments", "savings"].map((id) => (
