@@ -150,25 +150,25 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
     const allocation = Math.round(categoryAmount("spend") * 100) / 100;
     const goalAllocations = Object.fromEntries(GOAL_IDS.map((id) => [id, Math.round(categoryAmount(id) * 100)]));
     const confirmed = window.confirm(
-      "Submit " + dollars(paycheck) + " paycheck? This will replace your LIVE Safe to Spend allocation with " + dollars(allocation) + " starting " + periodStart + ", and add this paycheck to your goal progress. Existing Gmail purchases since that date are counted. This is NOT an additive Safe to Spend deposit."
+      "Submit " + dollars(paycheck) + " paycheck? This adds " + dollars(allocation) + " to the existing live Safe to Spend allocation and credits your goal progress. The current live budget start date is preserved."
     );
     if (!confirmed) return;
     setSavingLive(true);
     setSyncMessage("");
     try {
-      const response = await fetch("https://spendly-production-1bdf.up.railway.app/api/safe-to-spend/allocation", {
+      const response = await fetch("https://spendly-production-1bdf.up.railway.app/api/safe-to-spend/adjustments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: allocation, startDate: periodStart }),
+        body: JSON.stringify({ amount: allocation }),
       });
-      if (!response.ok) throw new Error("The backend could not save the budget.");
+      if (!response.ok) throw new Error("Could not credit Safe to Spend. Make sure a live budget already exists.");
       const updated = await response.json();
       setPlanner((previous) => ({ ...previous,
         periods: previous.periods.map((item) => item.id === period.id ? { ...item, submitted: true, submittedAt: new Date().toISOString(), submittedAllocations: goalAllocations } : item),
         goals: Object.fromEntries(GOAL_IDS.map((id) => [id, { ...(previous.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents: (previous.goals?.[id]?.allocatedCents || 0) + goalAllocations[id] }]))
       }));
       if (onBudgetSaved) await onBudgetSaved(updated);
-      setSyncMessage("Paycheck submitted. Live budget replaced and goal progress updated in this browser.");
+      setSyncMessage("Paycheck submitted. Safe to Spend credited and goal progress updated in this browser.");
     } catch (error) {
       setSyncMessage(error.message || "Unable to update live budget.");
     } finally {
@@ -209,7 +209,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         <div>
           <span className="finance-kicker">SHARED LIVE BUDGET</span>
           <h3>Submit paycheck</h3>
-          <p>One submission updates your goal progress and replaces your live Safe to Spend allocation with {dollars(categoryAmount("spend"))}. This is not an additive deposit. Goal progress is currently stored in this browser until secure multi-user database support is ready.</p>
+          <p>One submission updates your goal progress and adds {dollars(categoryAmount("spend"))} to your live Safe to Spend allocation. An existing live budget is required. Goal progress is currently stored in this browser until secure multi-user database support is ready.</p>
           <label>Budget start date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
         </div>
         <button type="button" className="finance-add" disabled={savingLive || period.submitted || !valid || paycheck <= 0} onClick={saveLiveBudget}>{savingLive ? "Submitting…" : period.submitted ? "Paycheck submitted ✓" : "Submit Paycheck"}</button>
