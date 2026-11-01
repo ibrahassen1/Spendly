@@ -14,11 +14,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/planner")
 public class UserPlannerController {
     private final UserPlannerRepository repository;
-    private final ObjectMapper mapper;
+    private final ObjectMapper mapper = new ObjectMapper();
 
-    public UserPlannerController(UserPlannerRepository repository, ObjectMapper mapper) {
+    public UserPlannerController(UserPlannerRepository repository) {
         this.repository = repository;
-        this.mapper = mapper;
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
