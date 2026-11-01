@@ -63,6 +63,18 @@ public class SafeToSpendController {
   return jdbc.queryForList("SELECT period_id AS \"periodId\", paycheck, safe_credit AS \"safeCredit\", paycheck_date AS \"paycheckDate\", submitted_at AS \"creditedAt\" FROM user_paycheck_credits WHERE user_id=? ORDER BY paycheck_date DESC NULLS LAST, submitted_at DESC",jwt.getSubject());
  }
  @GetMapping public SafeToSpendResponse get(@AuthenticationPrincipal Jwt jwt){return response(current(jwt));}
+ @PatchMapping("/start-date") @Transactional
+ public SafeToSpendResponse changeStartDate(@AuthenticationPrincipal Jwt jwt,@RequestBody Map<String,String> request){
+  LocalDate date;
+  try { date=LocalDate.parse(request.get("startDate")); }
+  catch(Exception e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid start date");}
+  if(date.isAfter(LocalDate.now())||date.isBefore(LocalDate.now().minusYears(2)))
+   throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Start date must be within the last two years and not in the future");
+  UserSafeBalance balance=current(jwt);
+  balance.setStartDate(date);
+  return response(balances.save(balance));
+ }
+
  @PostMapping("/opening-balance") @Transactional
  public SafeToSpendResponse set(@AuthenticationPrincipal Jwt jwt,@RequestBody AllocationRequest request){
   if(request.amount()==null||request.startDate()==null||request.amount().signum()<0)
