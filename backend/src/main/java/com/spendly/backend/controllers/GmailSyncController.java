@@ -30,7 +30,7 @@ public class GmailSyncController {
  @Value("${GOOGLE_CLIENT_ID:}") String clientId;
  @Value("${GOOGLE_CLIENT_SECRET:}") String clientSecret;
  @Value("${GMAIL_TOKEN_ENCRYPTION_KEY:}") String key;
- private static final Pattern AMOUNT=Pattern.compile("(?i)(?:purchase|transaction|spent|charged|debit card purchase)[^\\$]{0,150}\\$\\s*([0-9]{1,7}(?:,[0-9]{3})*\\.[0-9]{2})");
+ private static final Pattern AMOUNT=Pattern.compile("(?i)(?:purchase|transaction|spent|charged|debit card purchase)[^[$]]{0,150}[$]\\s*([0-9]{1,7}(?:,[0-9]{3})*\\.[0-9]{2})");
  public GmailSyncController(JdbcTemplate db){this.db=db;}
  private String decrypt(String value){
   try {
