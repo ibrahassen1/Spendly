@@ -7,10 +7,8 @@ const GOAL_IDS = ["expenses", "investments", "savings"];
 const DEFAULT_GOALS = Object.fromEntries(GOAL_IDS.map((id) => [id, { target: "", allocatedCents: 0 }]));
 const COLORS = ["#00E5C0", "#FFCC55", "#6C8CFF", "#E78AFF", "#FF809F", "#47DDF5", "#B8F36A"];
 const INITIAL = [
-  { id: "spend", name: "Safe to Spend", percent: 40 },
+  { id: "spend", name: "Safe to Spend", percent: 70 },
   { id: "expenses", name: "Expenses", percent: 30 },
-  { id: "investments", name: "Investments", percent: 30 },
-  { id: "savings", name: "Savings", percent: 0 },
 ];
 const MONEY = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const dollars = (n) => MONEY.format(Number(n) || 0);
@@ -244,7 +242,16 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       {view === "dashboard" && <SpendlyCoach disabled={!cloudReady || period.submitted} onApply={(splits,goals,usualPaycheck) => {
         setPlanner((p) => ({
           ...p,
-          categories:p.categories.map(c => ({...c,percent:splits[c.id] ?? 0})),
+          categories:(() => {
+            const existing = p.categories.filter(c => !["spend","expenses","investments","savings"].includes(c.id));
+            const included = [
+              {id:"expenses",name:"Expenses",percent:splits.expenses},
+              ...(splits.investments>0 ? [{id:"investments",name:"Investments",percent:splits.investments}] : []),
+              ...(splits.savings>0 ? [{id:"savings",name:"Savings",percent:splits.savings}] : []),
+              ...existing.map(c=>({...c,percent:0}))
+            ];
+            return [{id:"spend",name:"Safe to Spend",percent:100-included.reduce((sum,c)=>sum+c.percent,0)},...included];
+          })(),
           goals:{...p.goals,
             savings:{...(p.goals?.savings || DEFAULT_GOALS.savings),target:goals.savings ? String(goals.savings) : (p.goals?.savings?.target || "")},
             investments:{...(p.goals?.investments || DEFAULT_GOALS.investments),target:goals.investments ? String(goals.investments) : (p.goals?.investments?.target || "")}},
@@ -295,11 +302,11 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
                 <input aria-label={c.name + " allocation percentage"} type="range" min="0" max="100" step="1" value={c.percent} onChange={(e) => changeAllocation(c.id, e.target.value)} />
                 <input aria-label={c.name + " percentage"} type="number" min="0" max="100" step="1" value={c.percent} onChange={(e) => changeAllocation(c.id, e.target.value)} />
                 <span>%</span>
-                {customCategories.some((x) => x.id === c.id) && <button type="button" className="finance-remove" onClick={() => updateCategories(rebalance(categories.filter((x) => x.id !== c.id), "spend", categories.find((x) => x.id === "spend")?.percent))}>×</button>}
+                {c.id !== "spend" && <button type="button" className="finance-remove" aria-label={"Remove " + c.name} title={"Remove " + c.name} onClick={() => updateCategories(categories.filter((x) => x.id !== c.id).map(x=>x.id==="spend" ? {...x,percent:x.percent+c.percent} : x))}>×</button>}
               </div>
             </div>
           ))}
-          <button type="button" className="finance-add" onClick={() => updateCategories([...categories, { id: makeId(), name: "Custom " + (customCategories.length + 1), percent: 0 }])}>+ Add category</button>
+          <button type="button" className="finance-add" onClick={() => updateCategories([...categories, { id: makeId(), name: "Custom " + (customCategories.length + 1), percent: 0 }])}>+ Add your own category</button>
           {customCategories.map((c) => <label className="finance-custom-name" key={c.id}>Rename {c.name}<input value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></label>)}
         </article>
       </div>
