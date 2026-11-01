@@ -720,9 +720,11 @@ function App() {
         <nav className="page-tabs" aria-label="Spendly pages">
           <button type="button" className={activePage === "dashboard" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("dashboard")}>Dashboard</button>
           <button type="button" className={activePage === "safe" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("safe")}>Safe to Spend</button>
+          <button type="button" className={activePage === "goals" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("goals")}>Goals</button>
         </nav>
 
-        {activePage === "dashboard" && <FinanceDashboard safeToSpend={safeToSpend} onBudgetSaved={async (updated) => { setSafeToSpend(updated); await Promise.all([fetchTransactions(), fetchMoneyAdjustments()]); }} />}
+        {activePage === "dashboard" && <FinanceDashboard view="dashboard" safeToSpend={safeToSpend} onBudgetSaved={async (updated) => { setSafeToSpend(updated); await Promise.all([fetchTransactions(), fetchMoneyAdjustments()]); }} />}
+        {activePage === "goals" && <FinanceDashboard view="goals" safeToSpend={safeToSpend} />}
         {activePage === "safe" && (
           <>
         {safeToSpend ? (
