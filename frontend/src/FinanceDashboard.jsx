@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/react";
 const STORAGE_KEY = "spendly.finance-planner.v1";
 const GOAL_IDS = ["expenses", "investments", "savings"];
 const DEFAULT_GOALS = Object.fromEntries(GOAL_IDS.map((id) => [id, { target: "", allocatedCents: 0 }]));
-const COLORS = ["#3ad5aa", "#d5b46d", "#699cf0", "#c68ee8", "#e68f7c", "#6fd0d9", "#b7bd73"];
+const COLORS = ["#00E5C0", "#FFCC55", "#6C8CFF", "#E78AFF", "#FF809F", "#47DDF5", "#B8F36A"];
 const INITIAL = [
   { id: "spend", name: "Safe to Spend", percent: 40 },
   { id: "expenses", name: "Expenses", percent: 30 },
@@ -69,11 +69,11 @@ function AllocationChart({ categories, paycheck }) {
   };
   return (
     <svg className="allocation-svg" viewBox="0 0 440 350" role="img" aria-label="Paycheck allocation doughnut chart with labeled category amounts">
-      <circle cx="220" cy="175" r="91" fill="none" stroke="#273541" strokeWidth="32" />
+      <circle cx="220" cy="175" r="91" fill="none" stroke="#28243f" strokeWidth="43" />
       {slices.map((s, i) => (
         s.end - s.start >= 359.99
-          ? <circle key={s.id} cx="220" cy="175" r="91" fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth="32" />
-          : <path key={s.id} d={pathFor(s)} fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth="32" />
+          ? <circle key={s.id} cx="220" cy="175" r="91" fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth="43" />
+          : <path key={s.id} d={pathFor(s)} fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth="43" />
       ))}
       <text x="220" y="165" textAnchor="middle" fill="#95a7b2" fontSize="12">PAYCHECK</text>
       <text x="220" y="190" textAnchor="middle" fill="#ffffff" fontSize="23" fontWeight="500">{dollars(paycheck)}</text>
