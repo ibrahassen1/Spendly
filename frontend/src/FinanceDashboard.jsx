@@ -236,11 +236,11 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       {cloudReady && !cloudHasData && <button type="button" className="finance-add" onClick={importBrowserHistory}>Import existing browser paycheck history</button>}
       <fieldset disabled={!cloudReady} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <div className="finance-heading">
-        <p className="eyebrow">YOUR FINANCIAL OVERVIEW</p>
-        <h2>Dashboard</h2>
-        <p>Plan your paycheck and see where every dollar is going.</p>
+        <p className="eyebrow">{view === "goals" ? "YOUR PROGRESS" : "YOUR FINANCIAL OVERVIEW"}</p>
+        <h2>{view === "goals" ? "Financial Goals" : "Dashboard"}</h2>
+        <p>{view === "goals" ? "Keep your savings, investment, and expense targets in one place." : "Plan your paycheck and see where every dollar is going."}</p>
       </div>
-      <div className="finance-toolbar">
+      {view === "dashboard" && <div className="finance-toolbar">
         <label>Paycheck date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
         <label>Paycheck amount ($) <input type="number" min="0" step="0.01" placeholder="Enter take-home pay" value={period.paycheck} disabled={Boolean(period.submitted)} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
         {period.submitted && <button type="button" className="finance-add" onClick={() => {
@@ -249,7 +249,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           setPeriodStart(new Date().toLocaleDateString("en-CA"));
           setSyncMessage("");
         }}>+ Next paycheck</button>}
-      </div>
+      </div>}
       {view === "dashboard" && <>
       <div className="finance-paycheck-status" role="status">
         <span className="finance-paycheck-status-label">PAYCHECK</span>
@@ -358,9 +358,9 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <span className="finance-kicker">PROJECTED SAFE TO SPEND · THIS PAYCHECK</span>
         <strong>{valid ? dollars(safeBalance) : "Allocation incomplete"}</strong>
         <p>{dollars(categoryAmount("spend"))} spending allocation for this paycheck.</p>
-        <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Submit Paycheck” above to sync your allocation.</p>
+        <p>Staging Safe to Spend: {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not initialized"}. Secure paycheck credits and Gmail syncing are not yet enabled.</p>
       </article>
-      <p className="finance-local-note">Planner history is synced to staging PostgreSQL when the save status confirms success. Live Safe to Spend and Gmail transactions still use the shared production backend; do not invite other users yet.</p>
+      <p className="finance-local-note">Planner history syncs to your staging account. Paycheck crediting and Gmail syncing are paused while account isolation is finalized.</p>
         </>
       )}
       </fieldset>
