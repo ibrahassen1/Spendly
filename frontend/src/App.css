@@ -1455,3 +1455,31 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
  .finance-panels > .finance-panel:first-child .allocation-svg { width:100% !important; }
  .finance-panels > .finance-panel:nth-child(2) { padding:26px 22px !important; }
 }
+
+/* Spendly Coach — compact conversational onboarding */
+.coach-section { margin:12px 0 26px; font-family:"Fredoka",system-ui,sans-serif; }
+.coach-launch { width:100%; display:flex; align-items:center; text-align:left; gap:16px; padding:20px 24px; background:linear-gradient(110deg,#29204f,#17152d) !important; border:1px solid #55458e !important; border-radius:23px !important; color:white !important; }
+.coach-launch > span:nth-child(2) { display:flex; flex-direction:column; flex:1; gap:4px; }
+.coach-launch strong { font-size:1.05rem; font-weight:500; }
+.coach-launch small { font-size:.82rem; color:#c4bbef; }
+.coach-sparkle { font-size:1.8rem; color:#c2aaff; }
+.coach-body { padding:22px; background:#141225; border:1px solid #383052; border-radius:22px; margin-top:12px; }
+.coach-header,.coach-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.coach-header { margin-bottom:24px; color:#d3c7ff; }
+.coach-header small { color:#8e86ae; }
+.coach-bubble { background:#2a234b; border:1px solid #403568; color:#fff; border-radius:20px 20px 20px 5px; padding:17px 20px; max-width:560px; line-height:1.5; margin-bottom:18px; }
+.coach-reply { display:flex; justify-content:flex-end; margin:0 0 18px; }
+.coach-reply input,.coach-reply select { width:min(100%,470px); background:#211b42 !important; color:#fff !important; border:1px solid #6555a6 !important; border-radius:18px !important; padding:15px 17px; font:inherit; }
+.coach-footer { margin-top:20px; }
+.coach-footer > div { display:flex; gap:10px; }
+.coach-footer span { color:#aba2c8; font-size:.85rem; }
+.coach-primary { background:#8e77fa !important; color:#fff !important; padding:12px 21px; border:0; }
+.coach-secondary { background:#28233f !important; color:#eee9ff !important; padding:12px 19px; border:1px solid #453b68 !important; }
+.coach-primary:disabled { opacity:.5; cursor:not-allowed; }
+.coach-result { display:grid; gap:8px; }
+.coach-result > div { display:flex; justify-content:space-between; gap:12px; padding:15px; background:#201b37; border-radius:15px; }
+.coach-result strong { font-weight:500; }
+.coach-warning { color:#ffcf94; font-size:.86rem; line-height:1.5; }
+.coach-error { color:#ffb1c1; }
+.coach-disclaimer { color:#aaa2c3; font-size:.8rem; line-height:1.5; }
+@media(max-width:650px) { .coach-launch { padding:17px; } .coach-body { padding:17px; } .coach-header { flex-wrap:wrap; } .coach-footer { flex-wrap:wrap; } .coach-result > div { font-size:.87rem; } }
