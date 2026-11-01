@@ -289,20 +289,9 @@ function App() {
   };
 
   const fetchTransactions = async () => {
-    const response = await accountFetch(`/api/gmail/recent`
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        "Could not load transactions."
-      );
-    }
-
-    const data = await response.json();
-
-    setTransactions(data);
-
-    return data; */
+    // Gmail is disabled until account-scoped OAuth and transactions are implemented.
+    setTransactions([]);
+    return [];
   };
 
   const fetchMoneyAdjustments = async () => {
