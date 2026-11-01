@@ -999,13 +999,12 @@ function App() {
             </form>
           )}
 
+        </div>
         {message && (
-          <p className="message">
+          <p className="message safe-status-message" role="status">
             {message}
           </p>
         )}
-
-        </div>
 
         <section className="budget-card paycheck-ledger" aria-label="Paycheck ledger">
           <h3>Paycheck Ledger</h3>
