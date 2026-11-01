@@ -102,7 +102,7 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
   return (
     <article className="finance-panel finance-table-card">
       <span className="finance-kicker">PLANNED VS ACTUAL</span>
-      <h3>{title === "Recurring Monthly Expenses" ? title : title}</h3>
+      <h3>{title}</h3>
       <p>{title === "Recurring Monthly Expenses" ? "Enter monthly bill amounts in Planned. These are used for paycheck recommendations." : <>Allocated: <strong>{dollars(allocated)}</strong></>}</p>
       <div className="finance-grid-header"><span>Item</span><span>Planned</span><span>Actual</span><span></span></div>
       {entries.map((entry) => (
@@ -300,7 +300,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           <p>Based on {dollars(recurringMonthly)} in recurring monthly bills, {dollars(paycheck)} take-home pay, and your optional goals.</p>
           <button type="button" className="finance-add" onClick={()=>setShowRecommendation(v=>!v)}>{showRecommendation?"Hide suggestion":"View recommended split"}</button>
           {showRecommendation && <div className="coach-result" style={{marginTop:16}}>
-            {Object.entries(recommendation).filter(([key])=>["spend","expenses","savings","investments"].includes(key)).map(([key,value])=><div key={key}><span>{{spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"}[key]}</span><strong>{value}% · {dollars(paycheck*value/100)}</strong></div>)}
+            {Object.entries(recommendation).filter(([key])=>["spend","expenses","savings","investments"].includes(key)).map(([key,value])=><div key={key}><span>{({spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"})[key]}</span><strong>{value}% · {dollars(paycheck*value/100)}</strong></div>)}
             {!recommendation.feasible && <p className="coach-warning">Your goal timeline may be too aggressive. This split reserves room for spending and may require more time to reach your goals.</p>}
             <button type="button" className="coach-primary" onClick={applyRecommendation}>Apply to pie chart</button>
           </div>}
