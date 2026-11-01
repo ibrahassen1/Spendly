@@ -1584,3 +1584,15 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 }
 .safe-top-zone .budget-card .save-button { margin: 0; min-height: 48px; }
 .safe-top-zone .budget-card .edit-button { margin-top: 0 !important; min-height: 44px; }
+
+
+/* Compact Gmail connection status and transient feedback */
+.gmail-compact { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:13px 17px; margin:14px 0; border:1px solid rgba(181,163,255,.22); border-radius:16px; background:rgba(23,20,43,.7); color:#eae5ff; }
+.gmail-compact-info { display:flex; align-items:center; gap:10px; font-size:.88rem; font-weight:650; }
+.gmail-status-dot { width:8px; height:8px; border-radius:50%; background:#aa9ccf; }
+.gmail-compact:has(.gmail-settings) .gmail-settings { position:relative; }
+.gmail-settings summary { cursor:pointer; color:#c3b4ff; font-size:.85rem; font-weight:700; }
+.gmail-settings-panel { position:absolute; right:0; top:calc(100% + 10px); z-index:20; width:min(310px,80vw); padding:18px; border:1px solid #494068; border-radius:16px; background:#171426; box-shadow:0 16px 40px rgba(0,0,0,.4); }
+.gmail-settings-panel p { font-size:.83rem; line-height:1.5; margin:0 0 14px; color:#cbc5dc; }
+.gmail-settings-panel button { width:100%; }
+.gmail-toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); z-index:1000; max-width:calc(100vw - 32px); padding:13px 20px; border:1px solid #7360d6; border-radius:14px; background:#221b42; color:#f8f5ff; box-shadow:0 10px 36px rgba(0,0,0,.35); font-size:.9rem; text-align:center; }
