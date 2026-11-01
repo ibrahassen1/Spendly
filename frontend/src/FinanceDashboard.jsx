@@ -323,7 +323,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           {categories.map((c, i) => (
             <div className="finance-category" key={c.id}>
               <div className="finance-category-top">
-                <span style={{ color: COLORS[i % COLORS.length] }}>{c.name}</span>
+                {c.id === "spend" ? <span style={{ color: COLORS[i % COLORS.length] }}>{c.name}</span> : <input className="finance-category-name-inline" aria-label={"Edit category name: " + c.name} title="Click to rename category" value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} style={{color:COLORS[i % COLORS.length],background:"transparent",border:"1px solid transparent",borderRadius:8,padding:"4px 6px",font:"inherit",fontSize:"inherit",width:"min(75%, 330px)",minWidth:0}} onFocus={(e)=>e.target.select()} />}
                 <strong>{dollars(categoryAmount(c.id))}</strong>
               </div>
               <div className="finance-category-controls">
@@ -335,7 +335,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
             </div>
           ))}
           <button type="button" className="finance-add" onClick={() => updateCategories([...categories, { id: makeId(), name: "New category", percent: 0 }])}>+ Add your own category</button>
-          {customCategories.map((c) => <label className="finance-custom-name" key={c.id}>Category name<input aria-label={"Rename " + c.name} placeholder="e.g. Car Fund" value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></label>)}
+          
         </article>
       </div>
         </>
