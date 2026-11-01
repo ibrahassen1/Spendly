@@ -334,8 +334,8 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
               </div>
             </div>
           ))}
-          <button type="button" className="finance-add" onClick={() => updateCategories([...categories, { id: makeId(), name: "Custom " + (customCategories.length + 1), percent: 0 }])}>+ Add your own category</button>
-          {customCategories.map((c) => <label className="finance-custom-name" key={c.id}>Rename {c.name}<input value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></label>)}
+          <button type="button" className="finance-add" onClick={() => updateCategories([...categories, { id: makeId(), name: "New category", percent: 0 }])}>+ Add your own category</button>
+          {customCategories.map((c) => <label className="finance-custom-name" key={c.id}>Category name<input aria-label={"Rename " + c.name} placeholder="e.g. Car Fund" value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></label>)}
         </article>
       </div>
         </>
