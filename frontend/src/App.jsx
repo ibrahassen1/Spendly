@@ -248,14 +248,6 @@ function App() {
     else { setGmailConnection(null); setGmailStatusLoading(true); }
     setGmailSetupSkipped(false);
   },[isLoaded,isSignedIn,userId]);
-  // Sync on connection and every minute while the user has Spendly open.
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn || !gmailConnection?.connected) return;
-    syncGmail();
-    const interval = setInterval(() => { if (document.visibilityState === "visible") syncGmail(); }, 60000);
-    return () => clearInterval(interval);
-  }, [isLoaded, isSignedIn, userId, gmailConnection?.connected]);
-
   const [paycheckLedger, setPaycheckLedger] = useState([]);
   const loadPaycheckLedger = async () => {
     try {
