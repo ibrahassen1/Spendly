@@ -102,8 +102,8 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
   return (
     <article className="finance-panel finance-table-card">
       <span className="finance-kicker">PLANNED VS ACTUAL</span>
-      <h3>{title}</h3>
-      <p>Allocated: <strong>{dollars(allocated)}</strong></p>
+      <h3>{title === "Recurring Monthly Expenses" ? title : title}</h3>
+      <p>{title === "Recurring Monthly Expenses" ? "Enter monthly bill amounts in Planned. These are used for paycheck recommendations." : <>Allocated: <strong>{dollars(allocated)}</strong></>}</p>
       <div className="finance-grid-header"><span>Item</span><span>Planned</span><span>Actual</span><span></span></div>
       {entries.map((entry) => (
         <div className="finance-entry" key={entry.id}>
@@ -228,6 +228,37 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       setSavingLive(false);
     }
   };
+  const [showRecommendation,setShowRecommendation] = useState(false);
+  const recurringMonthly = entriesOf("expenses").reduce((sum,e)=>sum+cleanAmount(e.planned),0);
+  const goalMonths = Math.max(1,Number(planner.goalTimelineMonths)||18);
+  const checksPerYear = {weekly:52,biweekly:26,semimonthly:24,monthly:12}[planner.payFrequency || "biweekly"];
+  const expensePerCheck = recurringMonthly*12/checksPerYear;
+  const savingsTarget = cleanAmount(planner.goals?.savings?.target);
+  const investmentsTarget = cleanAmount(planner.goals?.investments?.target);
+  const desiredSavings = savingsTarget/(goalMonths*checksPerYear/12);
+  const desiredInvestments = investmentsTarget/(goalMonths*checksPerYear/12);
+  const recommendation = (() => {
+    if(paycheck<=0 || expensePerCheck>paycheck) return null;
+    const expenses=Math.ceil(expensePerCheck/paycheck*100);
+    const availableForGoals=Math.max(0,paycheck*(100-expenses)/100-paycheck*.10);
+    const desired=desiredSavings+desiredInvestments;
+    const factor=desired>0?Math.min(1,availableForGoals/desired):0;
+    const savings=Math.floor(desiredSavings*factor/paycheck*100);
+    const investments=Math.floor(desiredInvestments*factor/paycheck*100);
+    return {expenses,savings,investments,spend:100-expenses-savings-investments,feasible:desired<=availableForGoals,desired};
+  })();
+  const applyRecommendation=()=>{
+    if(!recommendation || period.submitted) return;
+    setPlanner(p=>{
+      const custom=p.categories.filter(c=>!["spend","expenses","investments","savings"].includes(c.id));
+      const next=[{id:"expenses",name:"Recurring Expenses",percent:recommendation.expenses},
+        ...(recommendation.savings>0?[{id:"savings",name:"Savings",percent:recommendation.savings}]:[]),
+        ...(recommendation.investments>0?[{id:"investments",name:"Investments",percent:recommendation.investments}]:[]),
+        ...custom.map(c=>({...c,percent:0}))];
+      return {...p,categories:[{id:"spend",name:"Safe to Spend",percent:100-next.reduce((sum,c)=>sum+c.percent,0)},...next]};
+    });
+    setShowRecommendation(false);
+  };
   const customCategories = useMemo(() => categories.filter((c) => !["spend", "expenses", "investments", "savings"].includes(c.id)), [categories]);
   return (
     <section className="finance-page">
@@ -239,34 +270,18 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <h2>{view === "goals" ? "Financial Goals" : "Dashboard"}</h2>
         <p>{view === "goals" ? "Keep your savings, investment, and expense targets in one place." : "Plan your paycheck and see where every dollar is going."}</p>
       </div>
+      {view === "dashboard" && <SpendlyCoach goals={{...planner.goals,timelineMonths:planner.goalTimelineMonths}} disabled={!cloudReady} onSave={({savings,investments,months}) => setPlanner(p=>({...p,goalTimelineMonths:months,goals:{...p.goals,savings:{...(p.goals?.savings || DEFAULT_GOALS.savings),target:savings},investments:{...(p.goals?.investments || DEFAULT_GOALS.investments),target:investments}}}))} />}
       {view === "dashboard" && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
-        <span className="finance-kicker">YOUR MONTHLY BASELINE</span>
-        <h3>Recurring monthly expenses</h3>
-        <p>Rent, utilities, subscriptions, and other bills you pay each month. Spendly Coach uses this automatically to recommend your paycheck split.</p>
-        <label>Monthly total ($)
-          <input type="number" min="0" step="0.01" value={planner.monthlyRecurring ?? ""} disabled={!cloudReady} onChange={(e)=>setPlanner(p=>({...p,monthlyRecurring:e.target.value}))} placeholder="e.g. 1200" />
+        <span className="finance-kicker">RECURRING MONTHLY EXPENSES</span>
+        <h3>Your monthly bills</h3>
+        <p>Add your rent, subscriptions, utilities and other recurring monthly bills in the Expenses section below. Spendly reads their planned amounts automatically.</p>
+        <strong>{dollars(recurringMonthly)} / month</strong>
+        <label style={{display:"block",marginTop:14}}>Pay schedule
+          <select value={planner.payFrequency || "biweekly"} onChange={e=>setPlanner(p=>({...p,payFrequency:e.target.value}))}>
+            <option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="semimonthly">Twice a month</option><option value="monthly">Monthly</option>
+          </select>
         </label>
-        <p className="finance-submit-note">This is a planning estimate, not a bank transaction. Changes save to your account planner.</p>
       </section>}
-      {view === "dashboard" && <SpendlyCoach monthlyRecurring={Number(planner.monthlyRecurring) || 0} disabled={!cloudReady || period.submitted} onApply={(splits,goals,usualPaycheck) => {
-        setPlanner((p) => ({
-          ...p,
-          categories:(() => {
-            const existing = p.categories.filter(c => !["spend","expenses","investments","savings"].includes(c.id));
-            const included = [
-              {id:"expenses",name:"Expenses",percent:splits.expenses},
-              ...(splits.investments>0 ? [{id:"investments",name:"Investments",percent:splits.investments}] : []),
-              ...(splits.savings>0 ? [{id:"savings",name:"Savings",percent:splits.savings}] : []),
-              ...existing.map(c=>({...c,percent:0}))
-            ];
-            return [{id:"spend",name:"Safe to Spend",percent:100-included.reduce((sum,c)=>sum+c.percent,0)},...included];
-          })(),
-          goals:{...p.goals,
-            savings:{...(p.goals?.savings || DEFAULT_GOALS.savings),target:goals.savings ? String(goals.savings) : (p.goals?.savings?.target || "")},
-            investments:{...(p.goals?.investments || DEFAULT_GOALS.investments),target:goals.investments ? String(goals.investments) : (p.goals?.investments?.target || "")}},
-          periods:p.periods.map(x=>x.id===period.id ? {...x,paycheck:String(usualPaycheck)} : x)
-        }));
-      }} />}
       {view === "dashboard" && <div className="finance-toolbar">
         <label>Paycheck date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
         <label>Paycheck amount ($) <input type="number" min="0" step="0.01" placeholder="Enter take-home pay" value={period.paycheck} disabled={Boolean(period.submitted)} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
@@ -277,6 +292,21 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           setSyncMessage("");
         }}>+ Next paycheck</button>}
       </div>}
+      {view === "dashboard" && paycheck>0 && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
+        <span className="finance-kicker">RECOMMENDED DISTRIBUTION</span>
+        <h3>Suggested paycheck split</h3>
+        {period.submitted ? <p>This paycheck is already saved. Recommendations apply only to a new, unsubmitted paycheck.</p> :
+         !recommendation ? <p>Your recurring monthly expenses exceed this paycheck. Review your expenses before applying a split.</p> : <>
+          <p>Based on {dollars(recurringMonthly)} in recurring monthly bills, {dollars(paycheck)} take-home pay, and your optional goals.</p>
+          <button type="button" className="finance-add" onClick={()=>setShowRecommendation(v=>!v)}>{showRecommendation?"Hide suggestion":"View recommended split"}</button>
+          {showRecommendation && <div className="coach-result" style={{marginTop:16}}>
+            {Object.entries(recommendation).filter(([key])=>["spend","expenses","savings","investments"].includes(key)).map(([key,value])=><div key={key}><span>{{spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"}[key]}</span><strong>{value}% · {dollars(paycheck*value/100)}</strong></div>)}
+            {!recommendation.feasible && <p className="coach-warning">Your goal timeline may be too aggressive. This split reserves room for spending and may require more time to reach your goals.</p>}
+            <button type="button" className="coach-primary" onClick={applyRecommendation}>Apply to pie chart</button>
+          </div>}
+          <p className="finance-submit-note">Preview only. Applying adjusts your planner, not your bank balance. Paycheck crediting remains paused in staging.</p>
+         </>}
+      </section>}
       {view === "dashboard" && <>
       <div className="finance-paycheck-status" role="status">
         <span className="finance-paycheck-status-label">PAYCHECK</span>
@@ -378,7 +408,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <>
       <div className="finance-tables">
         {["expenses", "investments", "savings"].map((id) => (
-          <FinanceTable key={id} title={categories.find((c) => c.id === id)?.name || id} allocated={categoryAmount(id)} entries={entriesOf(id)} onAdd={() => addEntry(id)} onChange={changeEntry} onRemove={removeEntry} />
+          <FinanceTable key={id} title={id==="expenses" ? "Recurring Monthly Expenses" : (categories.find((c) => c.id === id)?.name || id)} allocated={categoryAmount(id)} entries={entriesOf(id)} onAdd={() => addEntry(id)} onChange={changeEntry} onRemove={removeEntry} />
         ))}
       </div>
       <article className="finance-final">
