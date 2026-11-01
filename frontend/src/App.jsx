@@ -176,6 +176,22 @@ function App() {
       headers: { ...options.headers, Authorization: `Bearer ${token}` },
     });
   };
+  const [trackingDate, setTrackingDate] = useState("");
+  const [savingTrackingDate, setSavingTrackingDate] = useState(false);
+  const saveTrackingDate = async () => {
+    if (!trackingDate || savingTrackingDate) return;
+    setSavingTrackingDate(true);
+    try {
+      const res = await accountFetch("/api/safe-to-spend/start-date", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startDate: trackingDate })
+      });
+      if (!res.ok) throw new Error("Could not update tracking date (" + res.status + ")");
+      await fetchSafeToSpend();
+      notifyGmail("Tracking starts " + trackingDate + ". Click Sync Purchases to scan.");
+    } catch (error) { notifyGmail(error.message); }
+    finally { setSavingTrackingDate(false); }
+  };
   const [gmailSyncBusy, setGmailSyncBusy] = useState(false);
   const gmailSyncInFlight = useRef(false);
   const syncGmail = async () => {
@@ -386,6 +402,7 @@ function App() {
 
     setSafeToSpend(data);
     setBudgetStartDate(data.startDate);
+    setTrackingDate(data.startDate);
 
     return data;
   };
@@ -853,11 +870,13 @@ function App() {
                 </p>
 
                 <span className="period">
-                  Since{" "}
-                  {formatDate(paycheckLedger.length
-                    ? [...paycheckLedger].map(p => p.paycheckDate).filter(Boolean).sort()[0] || safeToSpend.startDate
-                    : safeToSpend.startDate)}
+                  Since{" "}{formatDate(safeToSpend.startDate)}
                 </span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginTop:10}}>
+                <label htmlFor="tracking-start-date" style={{fontSize:12}}>Track purchases from</label>
+                <input id="tracking-start-date" aria-label="Tracking start date" type="date" value={trackingDate || safeToSpend.startDate || ""} max={new Date().toLocaleDateString("en-CA")} onChange={e=>setTrackingDate(e.target.value)} />
+                <button type="button" disabled={savingTrackingDate || !trackingDate || trackingDate===safeToSpend.startDate} onClick={saveTrackingDate}>{savingTrackingDate ? "Saving…" : "Save date"}</button>
               </div>
 
               <h2
