@@ -723,6 +723,7 @@ function App() {
         {activePage === "goals" && <FinanceDashboard view="goals" safeToSpend={safeToSpend} />}
         {activePage === "safe" && (
           <>
+        <div className="safe-top-zone">
         {safeToSpend ? (
           <>
             <section className="safe-card safe-fintech-hero">
@@ -889,6 +890,8 @@ function App() {
             {message}
           </p>
         )}
+
+        </div>
 
         {(
           <section className="activity safe-activity">
