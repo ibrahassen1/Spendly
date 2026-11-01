@@ -1320,3 +1320,17 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
  .finance-panels { grid-template-columns:minmax(0,1fr) !important; }
  .finance-panels > .finance-panel:first-child .allocation-svg { max-width:370px; max-height:270px; }
 }
+
+/* Softer allocation figures: let sliders and labels lead, not bold currency */
+.finance-category-top strong,
+.finance-category strong,
+.finance-panel .finance-category-top strong {
+  font-family:"Fredoka",system-ui,sans-serif !important;
+  font-weight:300 !important;
+  letter-spacing:-.02em !important;
+  font-size:1.05rem;
+}
+.finance-category-controls input[type="number"] {
+  font-family:"Fredoka",system-ui,sans-serif !important;
+  font-weight:300 !important;
+}
