@@ -97,24 +97,23 @@ function AllocationChart({ categories, paycheck }) {
 }
 
 function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) {
-  const actual = entries.reduce((sum, e) => sum + cleanAmount(e.actual), 0);
-  const planned = entries.reduce((sum, e) => sum + cleanAmount(e.planned), 0);
+  const total = entries.reduce((sum, e) => sum + cleanAmount(e.planned), 0);
+  const recurring = title === "Recurring Monthly Expenses";
   return (
     <article className="finance-panel finance-table-card">
-      <span className="finance-kicker">PLANNED VS ACTUAL</span>
+      <span className="finance-kicker">{recurring ? "MONTHLY BILLS" : "YOUR ALLOCATIONS"}</span>
       <h3>{title}</h3>
-      <p>{title === "Recurring Monthly Expenses" ? "Enter monthly bill amounts in Planned. These are used for paycheck recommendations." : <>Allocated: <strong>{dollars(allocated)}</strong></>}</p>
-      <div className="finance-grid-header"><span>Item</span><span>Planned</span><span>Actual</span><span></span></div>
+      <p>{recurring ? "Add the bills you pay every month. Spendly uses these amounts to recommend your paycheck split." : <>Allocated from paycheck: <strong>{dollars(allocated)}</strong></>}</p>
+      <div className="finance-grid-header" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 120px 36px",gap:10}}><span>Item</span><span>Amount ($)</span><span></span></div>
       {entries.map((entry) => (
-        <div className="finance-entry" key={entry.id}>
-          <input aria-label={title + " item"} value={entry.name} placeholder="Item" onChange={(e) => onChange(entry.id, "name", e.target.value)} />
-          <input aria-label="Planned amount" type="number" min="0" step="0.01" value={entry.planned} placeholder="0" onChange={(e) => onChange(entry.id, "planned", e.target.value)} />
-          <input aria-label="Actual amount" type="number" min="0" step="0.01" value={entry.actual} placeholder="0" onChange={(e) => onChange(entry.id, "actual", e.target.value)} />
+        <div className="finance-entry" key={entry.id} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 120px 36px",gap:10}}>
+          <input aria-label={title + " item"} value={entry.name} placeholder={recurring ? "Rent, phone, utilities…" : "Item"} onChange={(e) => onChange(entry.id, "name", e.target.value)} />
+          <input aria-label={entry.name + " amount"} type="number" min="0" step="0.01" value={entry.planned} placeholder="0.00" onChange={(e) => onChange(entry.id, "planned", e.target.value)} />
           <button type="button" className="finance-remove" onClick={() => onRemove(entry.id)} aria-label={"Remove " + entry.name}>×</button>
         </div>
       ))}
       <button type="button" className="finance-add" onClick={onAdd}>+ Add item</button>
-      <div className="finance-table-totals"><span>Planned {dollars(planned)}</span><span>Actual {dollars(actual)}</span><span>Difference {dollars(planned - actual)}</span></div>
+      <div className="finance-table-totals"><strong>{recurring ? "Monthly total" : "Total"}: {dollars(total)}</strong></div>
     </article>
   );
 }
@@ -271,18 +270,8 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <p>{view === "goals" ? "Keep your savings, investment, and expense targets in one place." : "Plan your paycheck and see where every dollar is going."}</p>
       </div>
       {view === "dashboard" && <SpendlyCoach goals={{...planner.goals,timelineMonths:planner.goalTimelineMonths}} disabled={!cloudReady} onSave={({savings,investments,months}) => setPlanner(p=>({...p,goalTimelineMonths:months,goals:{...p.goals,savings:{...(p.goals?.savings || DEFAULT_GOALS.savings),target:savings},investments:{...(p.goals?.investments || DEFAULT_GOALS.investments),target:investments}}}))} />}
-      {view === "dashboard" && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
-        <span className="finance-kicker">RECURRING MONTHLY EXPENSES</span>
-        <h3>Your monthly bills</h3>
-        <p>Add your rent, subscriptions, utilities and other recurring monthly bills in the Expenses section below. Spendly reads their planned amounts automatically.</p>
-        <strong>{dollars(recurringMonthly)} / month</strong>
-        <label style={{display:"block",marginTop:14}}>Pay schedule
-          <select value={planner.payFrequency || "biweekly"} onChange={e=>setPlanner(p=>({...p,payFrequency:e.target.value}))}>
-            <option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="semimonthly">Twice a month</option><option value="monthly">Monthly</option>
-          </select>
-        </label>
-      </section>}
       {view === "dashboard" && <div className="finance-toolbar">
+        <label>Pay schedule <select value={planner.payFrequency || "biweekly"} onChange={(e)=>setPlanner(p=>({...p,payFrequency:e.target.value}))}><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="semimonthly">Twice a month</option><option value="monthly">Monthly</option></select></label>
         <label>Paycheck date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
         <label>Paycheck amount ($) <input type="number" min="0" step="0.01" placeholder="Enter take-home pay" value={period.paycheck} disabled={Boolean(period.submitted)} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
         {period.submitted && <button type="button" className="finance-add" onClick={() => {
