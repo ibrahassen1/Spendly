@@ -9,6 +9,20 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: spendly
+          POSTGRES_USER: spendly
+          POSTGRES_PASSWORD: spendly_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U spendly -d spendly"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
     defaults:
       run:
         working-directory: backend
@@ -20,6 +34,11 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Compile and test Spring Boot
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5434/spendly
+          SPRING_DATASOURCE_USERNAME: spendly
+          SPRING_DATASOURCE_PASSWORD: spendly_test
+          SPENDLY_AUTH_ISSUER_URI: https://example.invalid
         run: mvn -B clean verify
 
   frontend:
