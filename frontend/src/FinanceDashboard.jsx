@@ -252,11 +252,16 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       </div>
       <div className="finance-live-sync">
         <div>
-          <span className="finance-kicker">SHARED LIVE BUDGET</span>
-          <h3>Submit paycheck</h3>
-          <p>One submission updates your goal progress and adds {dollars(categoryAmount("spend"))} to your live Safe to Spend allocation. An existing live budget is required. Goal progress is currently stored in this browser until secure multi-user database support is ready.</p>
+          <span className="finance-kicker">PAYCHECK</span>
+          <h3>{period.submitted ? "Paycheck saved" : "Ready to save?"}</h3>
+          <p>{period.submitted
+            ? "Your paycheck is saved in your planner."
+            : "Your spending amount: " + dollars(categoryAmount("spend")) + ". Review your split below."}</p>
         </div>
-        <button type="button" className="finance-add" disabled onClick={saveLiveBudget}>{savingLive ? "Submitting…" : period.submitted ? "Paycheck submitted ✓" : "Submit Paycheck"}</button>
+        <button type="button" className="finance-add" disabled onClick={saveLiveBudget}>
+          {period.submitted ? "Saved ✓" : "Save paycheck"}
+        </button>
+        {!period.submitted && <span className="finance-submit-note">Secure paycheck crediting is being finalized. Saving is temporarily unavailable.</span>}
         {syncMessage && <p role="status">{syncMessage}</p>}
       </div>
       <div className="finance-panels">
