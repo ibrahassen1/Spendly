@@ -200,6 +200,8 @@ function App() {
     }catch(e){notifyGmail(e.message);}finally{setGmailSyncBusy(false);}
   };
   const [gmailConnection, setGmailConnection] = useState(null);
+  const [gmailStatusLoading, setGmailStatusLoading] = useState(true);
+  const [gmailSetupSkipped, setGmailSetupSkipped] = useState(false);
   const [gmailBusy, setGmailBusy] = useState(false);
   const [gmailMessage, setGmailMessage] = useState("");
   const gmailToastTimer = useRef(null);
@@ -220,11 +222,13 @@ function App() {
     }
   }, []);
   const loadGmailConnection = async () => {
+    setGmailStatusLoading(true);
     try {
       const res = await accountFetch("/api/gmail/connection/status");
       if (res.ok) setGmailConnection(await res.json());
       else notifyGmail("Gmail connection is not available yet.");
     } catch { notifyGmail("Unable to check Gmail connection."); }
+    finally { setGmailStatusLoading(false); }
   };
   const connectGmail = async () => {
     setGmailBusy(true);
@@ -248,7 +252,8 @@ function App() {
   };
   useEffect(()=>{
     if(isLoaded && isSignedIn && userId)loadGmailConnection();
-    else setGmailConnection(null);
+    else { setGmailConnection(null); setGmailStatusLoading(true); }
+    setGmailSetupSkipped(false);
   },[isLoaded,isSignedIn,userId]);
   const [paycheckLedger, setPaycheckLedger] = useState([]);
   const loadPaycheckLedger = async () => {
@@ -807,9 +812,22 @@ function App() {
       0
     );
 
+  const showGmailOnboarding = isLoaded && isSignedIn && !gmailStatusLoading && !gmailConnection?.connected && !gmailSetupSkipped;
+
   return (
     <main className="app">
-      <div className="dashboard">
+      {showGmailOnboarding ? (
+        <section className="gmail-onboarding" aria-label="Connect Gmail to Spendly">
+          <div className="gmail-onboarding-card">
+            <span className="eyebrow">WELCOME TO SPENDLY</span>
+            <h1>Connect your Gmail</h1>
+            <p>Spendly can find Wells Fargo purchase alerts so you can review spending before it changes your Safe to Spend balance.</p>
+            <p className="gmail-onboarding-privacy">Read-only Gmail access. Purchases are never deducted without your confirmation.</p>
+            <button type="button" className="save-button" onClick={connectGmail} disabled={gmailBusy}>{gmailBusy ? "Connecting…" : "Continue with Google"}</button>
+            <button type="button" className="edit-button" onClick={() => setGmailSetupSkipped(true)}>Not now — go to Dashboard</button>
+          </div>
+        </section>
+      ) : <div className="dashboard">
         <header className="app-header">
           <div>
             <p className="eyebrow">
@@ -907,24 +925,6 @@ function App() {
             <button type="button" onClick={restoreOpeningBalance}>Restore existing balance (one time)</button>
           </section>
         )}
-
-        <section className="gmail-compact" aria-label="Gmail connection">
-          <div className="gmail-compact-info">
-            <span className="gmail-status-dot" aria-hidden="true" />
-            <span>Gmail · {gmailConnection?.connected ? "Connected" : "Not connected"}</span>
-          </div>
-          <details className="gmail-settings">
-            <summary>Manage</summary>
-            <div className="gmail-settings-panel">
-              <p>{gmailConnection?.connected
-                ? "Gmail is connected. Automatic transaction syncing is not enabled yet."
-                : "Connect your Google account to prepare for transaction syncing."}</p>
-              {gmailConnection?.connected
-                ? <button type="button" className="edit-button" disabled={gmailBusy} onClick={disconnectGmail}>Disconnect Gmail</button>
-                : <button type="button" className="edit-button" disabled={gmailBusy} onClick={connectGmail}>{gmailBusy?"Connecting…":"Connect Gmail"}</button>}
-            </div>
-          </details>
-        </section>
 
         <section className="actions safe-quick-actions">
           <button type="button" className="refresh-button" disabled={!gmailConnection?.connected || gmailSyncBusy} onClick={previewGmail}>
@@ -1346,6 +1346,7 @@ function App() {
           <span>Goals</span>
         </button>
       </nav>
+      </div>}
       {gmailMessage && <div className="gmail-toast" role="status">{gmailMessage}</div>}
     </main>
   );
