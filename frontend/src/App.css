@@ -1058,3 +1058,34 @@ body,button,input,select,textarea { font-family:"DM Sans",Inter,-apple-system,Bl
 .label,.eyebrow,.finance-kicker { font-family:"DM Sans",sans-serif; letter-spacing:.105em; font-weight:700; }
 .page-tab,.activity-tab,button { font-weight:650; letter-spacing:-.012em; }
 @media(max-width:650px) { .safe-card .amount,.empty-hero h2 { font-size:3.2rem; } }
+
+/* High-contrast neutral fintech finish — slim, elegant balance numerals */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+:root { --bg:#050505; --surface:#141414; --surface-raised:#1e1e1e; --border:#292929; --text:#ffffff; --muted:#a9a9ad; --accent:#b8ff35; }
+html,body,#root { background:#050505 !important; }
+body { background:#050505 !important; color:#fff; font-family:Inter,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif; font-weight:400; }
+.app-header h1,.finance-heading h2,.section-heading h2,.activity-header h2,.finance-panel h3 {
+ font-family:Inter,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+ font-weight:600; letter-spacing:-.045em; color:#fff;
+}
+.amount,.safe-card .amount,.empty-hero h2,.finance-final strong,.stat strong,.transaction-amount {
+ font-family:"Helvetica Neue",Inter,-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+ font-weight:300 !important; letter-spacing:-.055em; font-variant-numeric:lining-nums tabular-nums;
+ color:#fff;
+}
+.safe-card .amount,.empty-hero h2 { font-size:clamp(3.35rem,6.5vw,5.15rem); line-height:1.15; }
+.safe-card,.empty-hero,.finance-panel,.finance-live-sync,.finance-final,.budget-card,.transaction-list,.no-transactions,.adjustment-summary {
+ background:#141414 !important; border-color:#292929 !important; box-shadow:none !important;
+}
+.page-tabs,.activity-tabs { background:#151515 !important; border-color:#292929 !important; }
+.page-tab.selected,.activity-tab.active { background:#292929 !important; color:#fff !important; box-shadow:none !important; }
+.stat,.transaction-row,.swipe-container { background:#1e1e1e !important; border-color:#303030 !important; }
+.finance-toolbar input,.finance-toolbar select,.finance-entry input,.finance-custom-name input,.finance-category-controls input[type="number"],.finance-live-sync input,.budget-card input { background:#0b0b0b !important; border-color:#343434 !important; color:#fff !important; }
+.finance-add,.edit-button { background:#222 !important; border-color:#383838 !important; color:#fff !important; }
+.refresh-button:disabled { background:#222 !important; border:1px solid #333 !important; color:#999 !important; opacity:1; }
+.eyebrow,.label,.finance-kicker { color:#b8ff35; }
+.empty-hero button,.save-button,.refresh-button:not(:disabled) { background:#b8ff35 !important; color:#080808 !important; box-shadow:none !important; }
+.finance-final strong { color:#fff !important; }
+.finance-category-controls input[type="range"] { accent-color:#b8ff35; }
+.safe-card::after { display:none !important; }
+@media(max-width:650px) { .safe-card .amount,.empty-hero h2 { font-size:3.65rem; } }
