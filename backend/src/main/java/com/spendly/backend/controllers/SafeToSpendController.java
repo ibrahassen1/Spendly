@@ -26,11 +26,13 @@ public class SafeToSpendController {
   return new SafeToSpendResponse(balance.getAllocation(),BigDecimal.ZERO,balance.getAllocation(),balance.getStartDate());
  }
  @GetMapping public SafeToSpendResponse get(@AuthenticationPrincipal Jwt jwt){return response(current(jwt));}
- @PostMapping("/allocation") @Transactional
+ @PostMapping("/opening-balance") @Transactional
  public SafeToSpendResponse set(@AuthenticationPrincipal Jwt jwt,@RequestBody AllocationRequest request){
   if(request.amount()==null||request.startDate()==null||request.amount().signum()<0)
    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"Invalid allocation");
-  UserSafeBalance b=balances.findById(jwt.getSubject()).orElseGet(UserSafeBalance::new);
+  if(balances.existsById(jwt.getSubject()))
+   throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"Opening balance already exists; use ledger adjustments instead");
+  UserSafeBalance b=new UserSafeBalance();
   b.setUserId(jwt.getSubject());b.setAllocation(request.amount());b.setStartDate(request.startDate());
   return response(balances.save(b));
  }
