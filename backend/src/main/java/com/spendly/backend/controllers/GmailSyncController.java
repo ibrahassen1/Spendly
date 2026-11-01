@@ -106,11 +106,10 @@ public class GmailSyncController {
   return Map.of("count",found.size(),"candidates",found.stream().map(c->Map.of("id",c.id,"merchant",c.merchant,"amount",c.amount,"date",c.date.toString())).toList(),
    "message","Preview only. No money has been deducted.");
  }
- @PostMapping("/apply")
+ @PostMapping("/sync")
  @Transactional
- public Map<String,Object> apply(@AuthenticationPrincipal Jwt jwt,@RequestBody Map<String,Object> request){
-  // Explicit user confirmation is required; automatic background deductions stay disabled.
-  if(!Boolean.TRUE.equals(request.get("confirm")))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Confirmation required");
+ public Map<String,Object> sync(@AuthenticationPrincipal Jwt jwt){
+  // Account-scoped, idempotent sync. Only new Gmail message IDs affect the balance.
   String user=jwt.getSubject();
   List<Candidate> found=candidates(user);
   var balance=db.query("SELECT allocation FROM user_safe_balances WHERE user_id=? FOR UPDATE",(rs,i)->rs.getBigDecimal(1),user);
