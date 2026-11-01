@@ -1528,3 +1528,59 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 }
 .coach-goal-fields label { min-width: 0; }
 .coach-goal-fields input { width: 100% !important; }
+
+
+/* Give the Add Money form comfortable spacing and prevent input overlap. */
+.safe-top-zone .budget-card {
+  padding: clamp(22px, 4vw, 34px) !important;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+}
+.safe-top-zone .budget-card .section-heading { margin-bottom: 4px; }
+.safe-top-zone .budget-card label {
+  display: block;
+  margin: 0;
+  line-height: 1.5;
+}
+.safe-top-zone .budget-card .money-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  width: 100%;
+  min-width: 0;
+}
+.safe-top-zone .budget-card .money-input span {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: #b9a7ff;
+  pointer-events: none;
+}
+.safe-top-zone .budget-card .money-input input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16px 18px 16px 38px !important;
+  font-size: 1rem;
+  line-height: 1.5;
+  height: auto;
+}
+.safe-top-zone .budget-card .money-input input::placeholder {
+  color: #908aa8;
+  opacity: 1;
+}
+.safe-top-zone .budget-card .date-explanation {
+  margin: 0;
+  line-height: 1.7;
+  font-size: .9rem;
+  color: #b6b0cb;
+}
+.safe-top-zone .budget-card .save-button { margin: 0; min-height: 48px; }
+.safe-top-zone .budget-card .edit-button { margin-top: 0 !important; min-height: 44px; }
