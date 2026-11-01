@@ -40,9 +40,10 @@ export default function SpendlyCoach({onApply,disabled=false}) {
  const [result,setResult] = useState(null);
  const q=questions[step];
  const next=()=>{
-  if(q.key==="goals" && !values.goals.trim()) return setError("Tell me what you're working toward.");
+  if(["savingsGoal","investingGoal"].includes(q.key) && (values[q.key]==="" || !Number.isFinite(Number(values[q.key])) || Number(values[q.key])<0)) return setError("Enter a goal amount of $0 or more.");
+  if(q.key==="investingGoal" && Number(values.savingsGoal)+Number(values.investingGoal)<=0) return setError("Add at least one savings or investment goal.");
   if(q.key==="paycheck" && !(Number(values.paycheck)>0)) return setError("Enter a paycheck greater than $0.");
-  if(q.key==="expenses" && !(Number(values.expenses)>=0 && Number(values.expenses)<Number(values.paycheck)) return setError("Essentials must be less than your paycheck.");
+  if(q.key==="expenses" && !(Number(values.expenses)>=0 && Number(values.expenses)<Number(values.paycheck))) return setError("Essentials must be less than your paycheck.");
   if(q.key==="months" && !(Number(values.months)>0 && Number(values.months)<=600)) return setError("Enter a realistic timeframe in months.");
   setError("");
   if(step===questions.length-1) {setResult(suggest(values));return;}
