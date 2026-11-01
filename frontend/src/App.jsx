@@ -250,11 +250,21 @@ function App() {
     if(isLoaded && isSignedIn && userId)loadGmailConnection();
     else setGmailConnection(null);
   },[isLoaded,isSignedIn,userId]);
+  const [paycheckLedger, setPaycheckLedger] = useState([]);
+  const loadPaycheckLedger = async () => {
+    try {
+      const response = await accountFetch("/api/safe-to-spend/paychecks");
+      if (!response.ok) return;
+      const data = await response.json();
+      setPaycheckLedger(Array.isArray(data) ? data : []);
+    } catch { /* Retain last ledger when offline. */ }
+  };
   const [activePage, setActivePage] = useState("dashboard");
   // Always reload the authoritative server balance when returning to Safe to Spend.
   useEffect(() => {
     if (activePage !== "safe" || !isLoaded || !isSignedIn || !userId) return;
     let cancelled = false;
+    loadPaycheckLedger();
     (async () => {
       try {
         const response = await accountFetch("/api/safe-to-spend");
@@ -816,7 +826,7 @@ function App() {
 
 
 
-        {activePage === "dashboard" && <FinanceDashboard view="dashboard" safeToSpend={safeToSpend} onBudgetSaved={async (updated) => { setSafeToSpend(updated); await Promise.all([fetchSafeToSpend(), fetchTransactions(), fetchMoneyAdjustments()]); }} />}
+        {activePage === "dashboard" && <FinanceDashboard view="dashboard" safeToSpend={safeToSpend} onBudgetSaved={async (updated) => { setSafeToSpend(updated); await Promise.all([fetchSafeToSpend(), fetchTransactions(), fetchMoneyAdjustments(), loadPaycheckLedger()]); }} />}
         {activePage === "goals" && <FinanceDashboard view="goals" safeToSpend={safeToSpend} />}
         {activePage === "safe" && (
           <>
@@ -831,9 +841,9 @@ function App() {
 
                 <span className="period">
                   Since{" "}
-                  {formatDate(
-                    safeToSpend.startDate
-                  )}
+                  {formatDate(paycheckLedger.length
+                    ? [...paycheckLedger].map(p => p.paycheckDate).filter(Boolean).sort()[0] || safeToSpend.startDate
+                    : safeToSpend.startDate)}
                 </span>
               </div>
 
@@ -1020,6 +1030,20 @@ function App() {
 
         </div>
 
+        <section className="budget-card paycheck-ledger" aria-label="Paycheck ledger">
+          <h3>Paycheck Ledger</h3>
+          <p className="date-explanation">Paychecks credited to this account. Safe to Spend shows the amount allocated, not your entire paycheck.</p>
+          {paycheckLedger.length ? <div className="paycheck-ledger-scroll">
+            <table>
+              <thead><tr><th>Paycheck date</th><th>Paycheck</th><th>Safe to Spend added</th></tr></thead>
+              <tbody>{paycheckLedger.map(p => <tr key={p.periodId}>
+                <td>{formatDate(p.paycheckDate)}</td>
+                <td>${formatMoney(p.paycheck)}</td>
+                <td>+${formatMoney(p.safeCredit)}</td>
+              </tr>)}</tbody>
+            </table>
+          </div> : <p>No paycheck credits recorded yet.</p>}
+        </section>
         {(
           <section className="activity safe-activity">
             <div className="activity-header">
