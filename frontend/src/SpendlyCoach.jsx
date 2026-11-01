@@ -7,13 +7,14 @@ const questions = [
   { key:"investingGoal", label:"Want to invest? (Optional)", hint:"Enter 0 if you don’t want to invest", type:"number" },
   { key:"paycheck", label:"How much is your usual take-home paycheck?", hint:"Amount after taxes", type:"number" },
   { key:"frequency", label:"How often do you get paid?", type:"select", options:[["weekly","Every week"],["biweekly","Every 2 weeks"],["semimonthly","Twice a month"],["monthly","Every month"]] },
-  { key:"expenses", label:"How much of each paycheck goes to essentials?", hint:"Rent, bills, groceries, transportation", type:"number" },
+
   { key:"months", label:"When would you like to reach your goals?", hint:"Number of months (e.g. 18)", type:"number" },
   { key:"strategy", label:"What matters most to you right now?", type:"select", options:[["balanced","Balance spending and goals"],["saving","Reach goals faster"],["flexible","More spending flexibility"]] },
 ];
 function suggest(values) {
   const paycheck = Number(values.paycheck);
-  const essentials = Number(values.expenses);
+  const monthlyRecurring = Number(values.monthlyRecurring || 0);
+  const essentials = monthlyRecurring * 12 / ({weekly:52,biweekly:26,semimonthly:24,monthly:12}[values.frequency]);
   const months = Number(values.months);
   const yearly = {weekly:52,biweekly:26,semimonthly:24,monthly:12}[values.frequency];
   const checks = months * yearly / 12;
@@ -32,7 +33,7 @@ function suggest(values) {
   const spend = Math.max(0,100-expenses-savings-investments);
   return {splits:{spend,expenses,investments,savings},goals,desired,available,feasible:desired<=room,checks,perCheck:{savings:savingPerCheck,investments:investingPerCheck}};
 }
-export default function SpendlyCoach({onApply,disabled=false}) {
+export default function SpendlyCoach({onApply,disabled=false,monthlyRecurring=0,onMonthlyRecurringChange}) {
  const [open,setOpen] = useState(false);
  const [step,setStep] = useState(0);
  const [values,setValues] = useState({savingsGoal:"",investingGoal:"",paycheck:"",frequency:"biweekly",expenses:"",months:"18",strategy:"balanced"});
@@ -43,10 +44,10 @@ export default function SpendlyCoach({onApply,disabled=false}) {
   if(["savingsGoal","investingGoal"].includes(q.key) && (values[q.key]==="" || !Number.isFinite(Number(values[q.key])) || Number(values[q.key])<0)) return setError("Enter a goal amount of $0 or more.");
 
   if(q.key==="paycheck" && !(Number(values.paycheck)>0)) return setError("Enter a paycheck greater than $0.");
-  if(q.key==="expenses" && !(Number(values.expenses)>=0 && Number(values.expenses)<Number(values.paycheck))) return setError("Essentials must be less than your paycheck.");
+
   if(q.key==="months" && !(Number(values.months)>0 && Number(values.months)<=600)) return setError("Enter a realistic timeframe in months.");
   setError("");
-  if(step===questions.length-1) {setResult(suggest(values));return;}
+  if(step===questions.length-1) {setResult(suggest({...values,monthlyRecurring}));return;}
   setStep(x=>x+1);
  };
  return <section className="coach-section">
@@ -56,6 +57,7 @@ export default function SpendlyCoach({onApply,disabled=false}) {
   {open && <div className="coach-body">
    <div className="coach-header"><span>✦ Spendly Coach</span><small>Guided budget planner · No AI required</small></div>
    {!result ? <>
+    <p className="coach-disclaimer">Recurring monthly expenses: <strong>{money(monthlyRecurring)}</strong> · Managed in your Dashboard, not entered again here.</p>
     <div className="coach-bubble">Hey! I'll help you find a starting budget. {q.label}</div>
     <div className="coach-reply">
      {q.type==="select" ? <select aria-label={q.label} value={values[q.key]} onChange={e=>setValues(v=>({...v,[q.key]:e.target.value}))}>{q.options.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select> :
@@ -68,6 +70,7 @@ export default function SpendlyCoach({onApply,disabled=false}) {
     <div className="coach-result">
      {Object.entries(result.splits).map(([key,pct])=><div key={key}><span>{({spend:"Safe to Spend",expenses:"Essentials",investments:"Investments",savings:"Savings"})[key]}</span><strong>{pct}% · {money(Number(values.paycheck)*pct/100)}</strong></div>)}
     </div>
+    <p className="coach-disclaimer">Based on {money(monthlyRecurring)} in recurring monthly expenses ({money(monthlyRecurring*12/({weekly:52,biweekly:26,semimonthly:24,monthly:12}[values.frequency]))} per paycheck). Edit this amount in your Dashboard before building a plan.</p>
     <p className="coach-disclaimer">{result.desired>0 ? `To reach your chosen goals in ${values.months} months, you would need about ${money(result.desired)} per paycheck.` : "No savings or investment targets selected. Your plan focuses on essentials and spendable money."}</p>
     {!result.feasible && <p className="coach-warning">That pace would leave too little room for essentials and everyday spending. This plan reduces goal contributions to fit your paycheck. Consider a longer timeline or lower targets.</p>}
     <p className="coach-disclaimer">Planning estimate, not investment advice. Amounts are targets, not guaranteed returns. Applying changes only your unsubmitted planner—not your bank balance or prior paychecks.</p>
