@@ -1059,25 +1059,23 @@ function App() {
                 <div className="transaction-list">
                   {transactions.map(
                     (transaction) => (
-                      <SwipeableTransaction
-                        key={transaction.id}
-                        transaction={transaction}
-                        formatMoney={formatMoney}
-                        formatDate={formatDate}
-                        formatTime={formatTime}
-                        onDelete={
-                          openDeleteConfirmation
-                        }
-                      />
+                      <div className="transaction-row" key={transaction.id}>
+                        <div className="transaction-icon">$</div>
+                        <div className="transaction-info">
+                          <p className="merchant">{transaction.merchant}</p>
+                          <p className="transaction-meta">{formatDate(transaction.date)}</p>
+                        </div>
+                        <strong className="transaction-amount">-${formatMoney(transaction.amount)}</strong>
+                      </div>
                     )
                   )}
                 </div>
               ) : (
                 <div className="no-transactions">
-                  <p>Transaction syncing is paused.</p>
+                  <p>No imported purchases yet.</p>
 
                   <span>
-                    Account-specific Gmail syncing is being built.
+                    Preview Gmail purchases above to review and import eligible alerts.
                   </span>
                 </div>
               )
@@ -1306,6 +1304,7 @@ function App() {
           <span>Goals</span>
         </button>
       </nav>
+      {gmailMessage && <div className="gmail-toast" role="status">{gmailMessage}</div>}
     </main>
   );
 }
