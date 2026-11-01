@@ -176,6 +176,40 @@ function App() {
       headers: { ...options.headers, Authorization: `Bearer ${token}` },
     });
   };
+  const [gmailConnection, setGmailConnection] = useState(null);
+  const [gmailBusy, setGmailBusy] = useState(false);
+  const [gmailMessage, setGmailMessage] = useState("");
+  const loadGmailConnection = async () => {
+    try {
+      const res = await accountFetch("/api/gmail/connection/status");
+      if (res.ok) setGmailConnection(await res.json());
+      else setGmailMessage("Gmail connection is not available yet.");
+    } catch { setGmailMessage("Unable to check Gmail connection."); }
+  };
+  const connectGmail = async () => {
+    setGmailBusy(true);
+    try {
+      const res=await accountFetch("/api/gmail/connection/start",{method:"POST"});
+      if(!res.ok) throw new Error("Gmail connection is not configured on staging yet.");
+      const data=await res.json();
+      if(!data.authorizationUrl?.startsWith("https://accounts.google.com/")) throw new Error("Unexpected authorization URL.");
+      window.location.assign(data.authorizationUrl);
+    }catch(e){setGmailMessage(e.message);setGmailBusy(false);}
+  };
+  const disconnectGmail = async () => {
+    if(!window.confirm("Disconnect Gmail from Spendly?"))return;
+    setGmailBusy(true);
+    try {
+      const res=await accountFetch("/api/gmail/connection",{method:"DELETE"});
+      if(!res.ok)throw new Error("Unable to disconnect Gmail.");
+      await loadGmailConnection();
+      setGmailMessage("Gmail disconnected.");
+    }catch(e){setGmailMessage(e.message);}finally{setGmailBusy(false);}
+  };
+  useEffect(()=>{
+    if(isLoaded && isSignedIn && userId)loadGmailConnection();
+    else setGmailConnection(null);
+  },[isLoaded,isSignedIn,userId]);
   const [activePage, setActivePage] = useState("dashboard");
   const [message, setMessage] = useState("");
 
