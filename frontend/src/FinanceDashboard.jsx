@@ -193,40 +193,49 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
   const safeBalance = categoryAmount("spend");
   const valid = Math.abs(percentTotal - 100) < 0.001;
   const saveLiveBudget = async () => {
-    setSyncMessage("Submission paused pending account-safe credits.");
-    return;
-    if (period.submitted) { setSyncMessage("This paycheck was already submitted. Create a new period for another paycheck."); return; }
-    if (!valid || !period.paycheck || paycheck <= 0 || !periodStart) {
-      setSyncMessage("Enter a positive paycheck, valid date, and allocations totaling 100%.");
+    if (savingLive || period.submitted) return;
+    if (!cloudReady || !valid || paycheck <= 0 || !periodStart) {
+      setSyncMessage("Enter a paycheck and a valid allocation totaling 100%.");
       return;
     }
     const allocation = Math.round(categoryAmount("spend") * 100) / 100;
-    const goalAllocations = Object.fromEntries(GOAL_IDS.map((id) => [id, Math.round(categoryAmount(id) * 100)]));
-    const confirmed = window.confirm(
-      "Submit " + dollars(paycheck) + " paycheck? This adds " + dollars(allocation) + " to the existing live Safe to Spend allocation and credits your goal progress. The current live budget start date is preserved."
-    );
-    if (!confirmed) return;
+    const goalAllocations = Object.fromEntries(GOAL_IDS.map(id => [id,Math.round(categoryAmount(id)*100)]));
+    if (!window.confirm("Submit " + dollars(paycheck) + " and add " + dollars(allocation) + " to Safe to Spend? This can only be credited once.")) return;
     setSavingLive(true);
     setSyncMessage("");
     try {
-      const response = await fetch("https://spendly-production-1bdf.up.railway.app/api/safe-to-spend/adjustments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: allocation }),
+      const token = await getToken();
+      if (!token) throw new Error("Sign in again.");
+      const response = await fetch(stagingApi + "/api/safe-to-spend/paychecks", {
+        method:"POST",
+        headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+        body:JSON.stringify({periodId:period.id,paycheck:Math.round(paycheck*100)/100,safeCredit:allocation,paycheckDate:periodStart})
       });
-      if (!response.ok) throw new Error("Could not credit Safe to Spend. Make sure a live budget already exists.");
-      const updated = await response.json();
-      setPlanner((previous) => ({ ...previous,
-        periods: previous.periods.map((item) => item.id === period.id ? { ...item, submitted: true, submittedAt: new Date().toISOString(), submittedAllocations: { ...goalAllocations, spend: Math.round(allocation * 100), ...Object.fromEntries(categories.filter((c) => !["spend", ...GOAL_IDS].includes(c.id)).map((c) => [c.id, Math.round(categoryAmount(c.id) * 100)])) }, submittedPaycheckCents: Math.round(paycheck * 100), submittedCategoryNames: Object.fromEntries(categories.map((c) => [c.id, c.name])) } : item),
-        goals: Object.fromEntries(GOAL_IDS.map((id) => [id, { ...(previous.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents: (previous.goals?.[id]?.allocatedCents || 0) + goalAllocations[id] }]))
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error("Paycheck not submitted (HTTP " + response.status + "): " + error.slice(0,180));
+      }
+      const updated=await response.json();
+      setPlanner(previous=>({
+        ...previous,
+        periods:previous.periods.map(item=>item.id===period.id ? {
+          ...item,submitted:true,submittedAt:new Date().toISOString(),
+          submittedAllocations:{...goalAllocations,spend:Math.round(allocation*100),
+            ...Object.fromEntries(categories.filter(c=>!["spend",...GOAL_IDS].includes(c.id)).map(c=>[c.id,Math.round(categoryAmount(c.id)*100)]))},
+          submittedPaycheckCents:Math.round(paycheck*100),
+          submittedCategoryNames:Object.fromEntries(categories.map(c=>[c.id,c.name]))
+        }:item),
+        goals:Object.fromEntries(GOAL_IDS.map(id=>[id,{
+          ...(previous.goals?.[id]||DEFAULT_GOALS[id]),
+          allocatedCents:(previous.goals?.[id]?.allocatedCents||0)+goalAllocations[id]
+        }]))
       }));
+      setRecommendationDismissed(true);
       if (onBudgetSaved) await onBudgetSaved(updated);
-      setSyncMessage("Paycheck submitted. Safe to Spend credited and goal progress updated in this browser.");
-    } catch (error) {
-      setSyncMessage(error.message || "Unable to update live budget.");
-    } finally {
-      setSavingLive(false);
-    }
+      setSyncMessage("Paycheck credited once. Your balance is updated.");
+    } catch(error) {
+      setSyncMessage(error.message || "Unable to submit. Check the status before trying again.");
+    } finally { setSavingLive(false); }
   };
   const recurringMonthly = entriesOf("expenses").reduce((sum,e)=>sum+cleanAmount(e.planned),0);
   const goalMonths = Math.max(1,Number(planner.goalTimelineMonths)||18);
@@ -280,6 +289,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <label>Pay schedule <select value={planner.payFrequency || "biweekly"} onChange={(e)=>setPlanner(p=>({...p,payFrequency:e.target.value}))}><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="semimonthly">Twice a month</option><option value="monthly">Monthly</option></select></label>
         <label>Paycheck date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
         <label>Paycheck amount ($) <input type="number" min="0" step="0.01" placeholder="Enter take-home pay" value={period.paycheck} disabled={Boolean(period.submitted)} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
+        {!period.submitted && <button type="button" className="coach-primary" disabled={!cloudReady || savingLive || !valid || paycheck<=0} onClick={saveLiveBudget}>{savingLive ? "Submitting…" : "Submit paycheck"}</button>}
         {period.submitted && <button type="button" className="finance-add" onClick={() => {
           const id = makeId();
           setPlanner((p) => ({ ...p, selected: id, periods: [...p.periods, { id, name: "Paycheck " + (p.periods.length + 1), paycheck: "", entries: [] }] }));
@@ -314,7 +324,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <span className="finance-paycheck-status-value">
           {period.submitted ? "✓ Saved to planner" : "Not yet submitted"}
         </span>
-        {!period.submitted && <span className="finance-submit-note">Paycheck crediting is temporarily paused.</span>}
+        {!period.submitted && <span className="finance-submit-note">Submitting credits your account once.</span>}
         {syncMessage && <span className="finance-submit-note">{syncMessage}</span>}
       </div>
       </>}
