@@ -2,7 +2,7 @@ import { ClerkProvider } from '@clerk/react';
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.jsx'
+import AuthGate from './AuthGate.jsx'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -22,7 +22,7 @@ createRoot(
 ).render(
   <StrictMode>
     <ClerkProvider afterSignOutUrl="/">
-<App />
+<AuthGate />
 </ClerkProvider>
   </StrictMode>,
 )
