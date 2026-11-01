@@ -176,6 +176,29 @@ function App() {
       headers: { ...options.headers, Authorization: `Bearer ${token}` },
     });
   };
+  const [gmailPreview, setGmailPreview] = useState(null);
+  const [gmailSyncBusy, setGmailSyncBusy] = useState(false);
+  const previewGmail = async () => {
+    setGmailSyncBusy(true);
+    try {
+      const res=await accountFetch("/api/gmail/transactions/preview",{method:"POST"});
+      if(!res.ok)throw new Error("Unable to preview Gmail purchases.");
+      setGmailPreview(await res.json());
+    }catch(e){notifyGmail(e.message);}finally{setGmailSyncBusy(false);}
+  };
+  const applyGmail = async () => {
+    if(!window.confirm("Deduct the previewed Wells Fargo purchases from your Safe to Spend balance? Check amounts carefully first."))return;
+    setGmailSyncBusy(true);
+    try {
+      const res=await accountFetch("/api/gmail/transactions/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirm:true})});
+      if(!res.ok)throw new Error("Unable to import Gmail purchases.");
+      const result=await res.json();
+      setGmailPreview(null);
+      await fetchSafeToSpend();
+      await fetchTransactions();
+      notifyGmail("Imported "+result.imported+" purchases · $"+result.deducted+" deducted");
+    }catch(e){notifyGmail(e.message);}finally{setGmailSyncBusy(false);}
+  };
   const [gmailConnection, setGmailConnection] = useState(null);
   const [gmailBusy, setGmailBusy] = useState(false);
   const [gmailMessage, setGmailMessage] = useState("");
@@ -871,8 +894,8 @@ function App() {
         </section>
         {gmailMessage && <div className="gmail-toast" role="status">{gmailMessage}</div>}
         <section className="actions safe-quick-actions">
-          <button type="button" className="refresh-button" disabled title="Gmail transaction syncing is not yet enabled for individual accounts">
-            ↻ Refresh Transactions (coming soon)
+          <button type="button" className="refresh-button" disabled={!gmailConnection?.connected || gmailSyncBusy} onClick={previewGmail}>
+            {gmailSyncBusy ? "Checking Gmail…" : "↻ Preview Gmail Purchases"}
           </button>
           {safeToSpend && (
             <button type="button" className="edit-button" onClick={openAddMoney}>
@@ -881,6 +904,20 @@ function App() {
           )}
         </section>
 
+        {gmailPreview && (
+          <section className="budget-card" style={{margin:"16px 0",padding:20}}>
+            <h3>Review purchases before importing</h3>
+            <p style={{opacity:.7}}>Only recent Wells Fargo alerts detected from Gmail. No deductions until you confirm. Check each amount against your bank.</p>
+            {gmailPreview.candidates?.map(item => (
+              <div key={item.id} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"10px 0",borderBottom:"1px solid #39304f"}}>
+                <span>{item.merchant} · {item.date}</span><strong>${Number(item.amount).toFixed(2)}</strong>
+              </div>
+            ))}
+            <p style={{marginTop:12}}>{gmailPreview.count || 0} candidate purchases</p>
+            <button type="button" className="save-button" disabled={gmailSyncBusy || !gmailPreview.count} onClick={applyGmail}>Confirm & Deduct</button>
+            <button type="button" className="edit-button" onClick={()=>setGmailPreview(null)}>Cancel</button>
+          </section>
+        )}
         {budgetMode === "add" &&
           safeToSpend && (
             <form
