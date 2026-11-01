@@ -1596,3 +1596,18 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 .gmail-settings-panel p { font-size:.83rem; line-height:1.5; margin:0 0 14px; color:#cbc5dc; }
 .gmail-settings-panel button { width:100%; }
 .gmail-toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); z-index:1000; max-width:calc(100vw - 32px); padding:13px 20px; border:1px solid #7360d6; border-radius:14px; background:#221b42; color:#f8f5ff; box-shadow:0 10px 36px rgba(0,0,0,.35); font-size:.9rem; text-align:center; }
+
+
+/* Ensure Gmail confirmation and account controls remain visible above the bottom nav. */
+.gmail-toast {
+  position: fixed !important;
+  top: max(18px, env(safe-area-inset-top)) !important;
+  bottom: auto !important;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999 !important;
+  pointer-events: none;
+}
+.gmail-compact { position: relative; z-index: 15; }
+.gmail-settings[open] { z-index: 100; }
+.gmail-settings-panel { z-index: 101; }
