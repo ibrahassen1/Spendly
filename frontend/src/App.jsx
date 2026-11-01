@@ -760,7 +760,6 @@ function App() {
               </h2>
 
               <p className="safe-subtitle">Spend freely. Your other allocations stay separate.</p>
-              <div className="safe-hero-bars" aria-hidden="true">{[36,55,43,72,51,83,60].map((height,index) => <span key={index} style={{ height: `${height}%` }} />)}</div>
 
               <div className="stats">
                 <div className="stat">
@@ -797,7 +796,6 @@ function App() {
             <h2>$0.00</h2>
 
             <p>Your balance appears here when your paycheck is credited.</p>
-            <div className="safe-hero-bars" aria-hidden="true">{[36,55,43,72,51,83,60].map((height,index) => <span key={index} style={{ height: `${height}%` }} />)}</div>
             <p className="safe-restore-note">Already used Spendly? Restore your previous balance once.</p>
             <button type="button" onClick={restoreOpeningBalance}>Restore existing balance (one time)</button>
           </section>
