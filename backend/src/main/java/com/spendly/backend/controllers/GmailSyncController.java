@@ -143,7 +143,7 @@ public class GmailSyncController {
     else if(sender.contains(DISCOVER_SENDER))alert=parseDiscoverAlert(content,fallbackDate,fallback);
     else continue;
     if(alert.amount().signum()<=0)continue;
-    found.add(new Candidate(id,alert.merchant(),alert.amount(),alert.transactionDate()));
+    found.add(new Candidate(id,alert.merchant(),alert.amount(),alert.date()));
    }catch(RuntimeException ex){System.err.println("Failed to parse Gmail message "+id+": "+ex.getMessage());}
   }
   return found;
