@@ -599,6 +599,6 @@ public class GmailSyncController {
    if(n==1){inserted++;deducted=deducted.add(c.amount);}
   }
   if(deducted.signum()>0)db.update("UPDATE user_safe_balances SET allocation=allocation-? WHERE user_id=?",deducted,user);
-  return Map.of("imported",inserted,"deducted",deducted,"message","Only new Gmail message IDs were deducted");
+  return Map.of("found",found.size(),"imported",inserted,"deducted",deducted,"message",inserted>0?"New purchases deducted":found.isEmpty()?"No transactions found":"No new transactions; already synced");
  }
 }
