@@ -1395,3 +1395,34 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
  .spendly-bottom-nav { bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:calc(100% - 26px); border-radius:23px; }
  .bottom-nav-item { min-height:56px; }
 }
+
+/* Full-width violet top zone ends cleanly before the activity ledger */
+.safe-top-zone {
+ position:relative; isolation:isolate;
+ margin:0 0 34px;
+ padding:clamp(16px,3vw,30px);
+ border-radius:32px;
+ background:linear-gradient(160deg,#9d83f7 0%,#6754f5 42%,#3429d7 100%);
+ border:1px solid rgba(206,193,255,.34);
+ box-shadow:0 20px 65px rgba(62,43,176,.19);
+ overflow:hidden;
+}
+.safe-top-zone::before {
+ content:""; position:absolute; inset:0; pointer-events:none; z-index:-1;
+ background:radial-gradient(ellipse at 95% 0%,rgba(255,255,255,.23),transparent 57%);
+}
+.safe-top-zone .safe-fintech-hero {
+ background:transparent !important; border:0 !important; box-shadow:none !important;
+ padding:18px 16px 8px !important; margin:0 !important; min-height:0 !important;
+}
+.safe-top-zone .safe-fintech-hero::before { display:none; }
+.safe-top-zone .safe-quick-actions { margin:16px 0 0 !important; }
+.safe-top-zone .safe-quick-actions button { background:rgba(17,12,78,.3) !important; border:1px solid rgba(255,255,255,.22) !important; color:white !important; }
+.safe-top-zone .safe-quick-actions button:disabled { opacity:.65; }
+.safe-top-zone .safe-fintech-hero button { border-radius:16px !important; }
+.safe-top-zone .budget-card { margin-top:18px; }
+.safe-activity { margin-top:0 !important; }
+@media(max-width:650px) {
+ .safe-top-zone { margin:0 -8px 30px; padding:18px 16px 20px; border-radius:28px; }
+ .safe-top-zone .safe-fintech-hero { padding:14px 8px 8px !important; }
+}
