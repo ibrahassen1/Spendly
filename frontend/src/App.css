@@ -1179,3 +1179,25 @@ button,.refresh-button,.edit-button,.save-button,.empty-hero button,.finance-add
  .safe-card,.empty-hero { border-radius:26px !important; }
  .finance-panel { border-radius:22px !important; }
 }
+
+/* Reference-matched sleek typography: replace rounded Nunito with light SF-like sans */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+:root { --sleek-font:"Outfit","Helvetica Neue",Arial,sans-serif; }
+body,button,input,select,textarea,.page-tab,.activity-tab,.eyebrow,.label,.finance-kicker {
+ font-family:var(--sleek-font) !important; letter-spacing:0;
+}
+.app-header h1,.finance-heading h2,.section-heading h2,.activity-header h2,.finance-panel h3,.finance-live-sync h3,.finance-final h3 {
+ font-family:var(--sleek-font) !important; font-weight:500 !important; letter-spacing:-.025em;
+}
+.safe-card .amount,.empty-hero h2,.finance-final strong,.stat strong,.transaction-amount {
+ font-family:var(--sleek-font) !important; font-weight:300 !important;
+ letter-spacing:-.025em; font-variant-numeric:lining-nums tabular-nums;
+}
+.page-tab,.activity-tab,button,.finance-add { font-weight:500 !important; }
+.eyebrow,.label,.finance-kicker { font-weight:600 !important; letter-spacing:.07em; }
+.finance-live-sync { align-items:center; gap:14px; }
+.finance-live-sync h3 { font-size:1.2rem; margin:6px 0; }
+.finance-live-sync p { margin:0; max-width:440px; font-size:.84rem; }
+.finance-live-sync .finance-add { min-width:140px; }
+.finance-submit-note { color:#9b96b4; font-size:.72rem; line-height:1.4; }
+@media(max-width:650px) { .finance-live-sync .finance-add { width:100%; } }
