@@ -1089,3 +1089,65 @@ body { background:#050505 !important; color:#fff; font-family:Inter,-apple-syste
 .finance-category-controls input[type="range"] { accent-color:#b8ff35; }
 .safe-card::after { display:none !important; }
 @media(max-width:650px) { .safe-card .amount,.empty-hero h2 { font-size:3.65rem; } }
+
+/* Spendly VIOLET — inspired by the supplied midnight-purple mobile finance UI */
+:root {
+  --bg:#070710; --surface:#11111e; --surface-raised:#1a1a2b;
+  --border:#28283c; --text:#f9f8ff; --muted:#a4a3bb; --accent:#9d8cff;
+}
+html,body,#root { background:#070710 !important; }
+body { background:#070710 !important; color:var(--text); }
+.app { background:radial-gradient(ellipse 60% 330px at 50% -120px,rgba(93,70,201,.19),transparent 85%); }
+.app-header h1 { font-size:clamp(1.8rem,3.2vw,2.55rem); font-weight:600; letter-spacing:-.055em; }
+.eyebrow,.label,.finance-kicker { color:#aaa0ff !important; }
+.status-dot,.footer-dot { background:#9d8cff; }
+.page-tabs,.activity-tabs { background:#11111d !important; border:1px solid #25253a !important; }
+.page-tab.selected,.activity-tab.active { background:#292642 !important; color:#fff !important; }
+.page-tab,.activity-tab { color:#a6a4bc; }
+.safe-card,.empty-hero {
+  position:relative; isolation:isolate; overflow:hidden;
+  background:linear-gradient(130deg,#28234d 0%,#1b1a35 44%,#111321 100%) !important;
+  border:1px solid #49416d !important;
+  box-shadow:0 18px 60px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.08) !important;
+  border-radius:24px;
+}
+.safe-card::before,.empty-hero::before {
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background:radial-gradient(ellipse 70% 80% at 95% 0%,rgba(134,105,255,.35),transparent 78%);
+}
+.safe-card::after { display:none !important; }
+.safe-card .amount,.empty-hero h2 {
+  font-family:"Helvetica Neue",Inter,-apple-system,sans-serif;
+  font-weight:300 !important; letter-spacing:-.045em; color:#fff !important;
+  font-size:clamp(3.3rem,6vw,4.8rem);
+}
+.empty-hero > p:not(.label),.safe-subtitle { color:#c2bfd9; }
+.empty-hero button,.save-button,.refresh-button:not(:disabled) {
+  background:linear-gradient(105deg,#7561f4,#b0a2ff) !important;
+  color:#fff !important; border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 8px 25px rgba(97,70,240,.22) !important;
+}
+.refresh-button:disabled { background:#1b1b2c !important; border:1px solid #34314e !important; color:#aaa6c3 !important; }
+.edit-button,.finance-add { background:#222139 !important; border:1px solid #393554 !important; color:#e8e4ff !important; }
+.finance-panel,.finance-live-sync,.finance-final,.budget-card,.transaction-list,.no-transactions,.adjustment-summary {
+  background:#131322 !important; border:1px solid #29283e !important; box-shadow:none !important;
+}
+.stat,.transaction-row,.swipe-container { background:#1b1a2c !important; border-color:#302e45 !important; }
+.transaction-icon { background:#2b2549 !important; border-color:#443d69 !important; color:#b0a2ff !important; }
+.finance-toolbar input,.finance-toolbar select,.finance-entry input,.finance-custom-name input,.finance-category-controls input[type="number"],.finance-live-sync input,.budget-card input {
+  background:#0b0b18 !important; border-color:#38344f !important; color:#fff !important;
+}
+.finance-category-controls input[type="range"] { accent-color:#a18bff; }
+.finance-final strong { color:#c5baff !important; }
+.positive-adjustment,.finance-valid { color:#9ee6cf !important; }
+.finance-warning { color:#ffbc8b !important; }
+.activity-header h2,.finance-panel h3,.finance-heading h2 { color:#f9f8ff; }
+.finance-panel { border-radius:19px; }
+.no-transactions p,.merchant { color:#f4f2ff; }
+.transaction-meta,.update-status,.finance-local-note { color:#a4a3bb; }
+footer { color:#77758e; }
+::selection { background:#9281f8; color:white; }
+@media(max-width:650px) {
+ .safe-card,.empty-hero { border-radius:22px; }
+ .safe-card .amount,.empty-hero h2 { font-size:3.55rem; }
+}
