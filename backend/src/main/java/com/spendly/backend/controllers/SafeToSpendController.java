@@ -35,7 +35,7 @@ public class SafeToSpendController {
  }
  private SafeToSpendResponse response(UserSafeBalance balance){
   // Gmail spending is intentionally excluded until transactions and OAuth are isolated by account.
-  return new SafeToSpendResponse(balance.getAllocation(),BigDecimal.ZERO,balance.getAllocation(),trackingStart(balance.getUserId(),balance.getStartDate()));
+  return new SafeToSpendResponse(balance.getAllocation(),BigDecimal.ZERO,balance.getAllocation(),balance.getStartDate());
  }
  @PostMapping("/paychecks") @Transactional
  public SafeToSpendResponse creditPaycheck(@AuthenticationPrincipal Jwt jwt,@RequestBody PaycheckCreditRequest request){
@@ -69,6 +69,11 @@ public class SafeToSpendController {
   return jdbc.queryForList("SELECT period_id AS \"periodId\", paycheck, safe_credit AS \"safeCredit\", paycheck_date AS \"paycheckDate\", submitted_at AS \"creditedAt\" FROM user_paycheck_credits WHERE user_id=? ORDER BY paycheck_date DESC NULLS LAST, submitted_at DESC",jwt.getSubject());
  }
  @GetMapping public SafeToSpendResponse get(@AuthenticationPrincipal Jwt jwt){return response(current(jwt));}
+ @GetMapping("/start-date")
+ public Map<String,String> getTrackingStartDate(@AuthenticationPrincipal Jwt jwt){
+  UserSafeBalance balance=current(jwt);
+  return Map.of("startDate",trackingStart(jwt.getSubject(),balance.getStartDate()).toString());
+ }
  @PatchMapping("/start-date") @Transactional
  public SafeToSpendResponse changeStartDate(@AuthenticationPrincipal Jwt jwt,@RequestBody Map<String,String> request){
   LocalDate date;
