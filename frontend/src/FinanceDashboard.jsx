@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useAuth } from "@clerk/react";
 
 const STORAGE_KEY = "spendly.finance-planner.v1";
 const GOAL_IDS = ["expenses", "investments", "savings"];
@@ -120,9 +121,60 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
 }
 
 export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
+  const { getToken, userId } = useAuth();
   const [planner, setPlanner] = useState(loadPlanner);
-  
-  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(planner)); }, [planner]);
+  const [cloudReady, setCloudReady] = useState(false);
+  const [cloudHasData, setCloudHasData] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState("Loading your account planner…");
+  const skipInitialSave = useRef(true);
+  const stagingApi = "https://spendly-staging-staging.up.railway.app";
+  useEffect(() => {
+    let cancelled = false;
+    skipInitialSave.current = true;
+    setCloudReady(false);
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("No session token");
+        const response = await fetch(stagingApi + "/api/planner", { headers: { Authorization: "Bearer " + token } });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const remote = response.status === 204 ? null : await response.json();
+        if (cancelled) return;
+        if (remote && (!Array.isArray(remote.periods) || !Array.isArray(remote.categories) || !remote.goals)) throw new Error("Invalid planner data");
+        setCloudHasData(Boolean(remote));
+        setPlanner(remote || { goals: DEFAULT_GOALS, categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null });
+        setCloudStatus(remote ? "Planner loaded from your account." : "No cloud planner yet. Import your browser history below if needed.");
+        skipInitialSave.current = true;
+        setCloudReady(true);
+      } catch (error) {
+        if (!cancelled) setCloudStatus("Unable to load account planner: " + error.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [getToken, userId]);
+  useEffect(() => {
+    if (!cloudReady) return;
+    if (skipInitialSave.current) { skipInitialSave.current = false; return; }
+    const timer = setTimeout(async () => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Session expired");
+        const response = await fetch(stagingApi + "/api/planner", {
+          method: "PUT",
+          headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+          body: JSON.stringify(planner)
+        });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        setCloudHasData(true);
+        setCloudStatus("Planner saved to your staging account.");
+      } catch (error) { setCloudStatus("SAVE FAILED: " + error.message + ". Keep this tab open."); }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [planner, cloudReady, getToken]);
+  const importBrowserHistory = () => {
+    if (cloudHasData || !window.confirm("Import your browser history to this account? This will not credit Safe to Spend or resubmit paychecks.")) return;
+    setPlanner(loadPlanner());
+  };
   const [savingLive, setSavingLive] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const [goalLedgerView, setGoalLedgerView] = useState(null);
@@ -178,6 +230,9 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
   const customCategories = useMemo(() => categories.filter((c) => !["spend", "expenses", "investments", "savings"].includes(c.id)), [categories]);
   return (
     <section className="finance-page">
+      <p role="status" className="finance-local-note">{cloudStatus}</p>
+      {cloudReady && !cloudHasData && <button type="button" className="finance-add" onClick={importBrowserHistory}>Import existing browser paycheck history</button>}
+      <fieldset disabled={!cloudReady} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <div className="finance-heading">
         <p className="eyebrow">YOUR FINANCIAL OVERVIEW</p>
         <h2>Dashboard</h2>
@@ -294,7 +349,8 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         <p>{dollars(categoryAmount("spend"))} spending allocation for this paycheck.</p>
         <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Submit Paycheck” above to sync your allocation.</p>
       </article>
-      <p className="finance-local-note">Planner categories, entries, and pay periods are stored in this browser only. The live budget changes only when you click Submit Paycheck. Goal progress and submission history are currently browser-only; do not treat this as a multi-device or multi-user accounting ledger.</p>
+      <p className="finance-local-note">Planner history is synced to staging PostgreSQL when the save status confirms success. Live Safe to Spend and Gmail transactions still use the shared production backend; do not invite other users yet.</p>
+      </fieldset>
     </section>
   );
 }
