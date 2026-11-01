@@ -76,7 +76,7 @@ function AllocationChart({ categories, paycheck }) {
           : <path key={s.id} d={pathFor(s)} fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth="32" />
       ))}
       <text x="220" y="165" textAnchor="middle" fill="#95a7b2" fontSize="12">PAYCHECK</text>
-      <text x="220" y="190" textAnchor="middle" fill="#f4fbff" fontSize="23" fontWeight="700">{dollars(paycheck)}</text>
+      <text x="220" y="190" textAnchor="middle" fill="#ffffff" fontSize="23" fontWeight="500">{dollars(paycheck)}</text>
       {slices.map((s, i) => {
         const mid = (s.start + s.end) / 2;
         const a = point(mid, 110);
