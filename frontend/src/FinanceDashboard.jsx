@@ -42,9 +42,9 @@ function rebalance(categories, changedId, requested) {
 function loadPlanner() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (saved && Array.isArray(saved.categories) && saved.categories.some((c) => c.id === "spend") && Array.isArray(saved.periods) && saved.periods.length) return { ...saved, goals: { ...DEFAULT_GOALS, ...saved.goals }, categories: rebalance(saved.categories, "spend", saved.categories.find((c) => c.id === "spend").percent) };
+    if (saved && Array.isArray(saved.categories) && saved.categories.some((c) => c.id === "spend") && Array.isArray(saved.periods) && saved.periods.length) return { monthlyRecurring: 0, ...saved, goals: { ...DEFAULT_GOALS, ...saved.goals }, categories: rebalance(saved.categories, "spend", saved.categories.find((c) => c.id === "spend").percent) };
   } catch { /* corrupted storage: start fresh */ }
-  return { goals: DEFAULT_GOALS, categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null };
+  return { monthlyRecurring: 0, goals: DEFAULT_GOALS, categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null };
 }
 
 function AllocationChart({ categories, paycheck }) {
@@ -141,7 +141,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         if (cancelled) return;
         if (remote && (!Array.isArray(remote.periods) || !Array.isArray(remote.categories) || !remote.goals)) throw new Error("Invalid planner data");
         setCloudHasData(Boolean(remote));
-        setPlanner(remote || { goals: DEFAULT_GOALS, categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null });
+        setPlanner(remote || { monthlyRecurring: 0, goals: DEFAULT_GOALS, categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null });
         setCloudStatus(remote ? "Planner loaded from your account." : "No cloud planner yet. Import your browser history below if needed.");
         skipInitialSave.current = true;
         setCloudReady(true);
@@ -239,7 +239,16 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <h2>{view === "goals" ? "Financial Goals" : "Dashboard"}</h2>
         <p>{view === "goals" ? "Keep your savings, investment, and expense targets in one place." : "Plan your paycheck and see where every dollar is going."}</p>
       </div>
-      {view === "dashboard" && <SpendlyCoach disabled={!cloudReady || period.submitted} onApply={(splits,goals,usualPaycheck) => {
+      {view === "dashboard" && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
+        <span className="finance-kicker">YOUR MONTHLY BASELINE</span>
+        <h3>Recurring monthly expenses</h3>
+        <p>Rent, utilities, subscriptions, and other bills you pay each month. Spendly Coach uses this automatically to recommend your paycheck split.</p>
+        <label>Monthly total ($)
+          <input type="number" min="0" step="0.01" value={planner.monthlyRecurring ?? ""} disabled={!cloudReady} onChange={(e)=>setPlanner(p=>({...p,monthlyRecurring:e.target.value}))} placeholder="e.g. 1200" />
+        </label>
+        <p className="finance-submit-note">This is a planning estimate, not a bank transaction. Changes save to your account planner.</p>
+      </section>}
+      {view === "dashboard" && <SpendlyCoach monthlyRecurring={Number(planner.monthlyRecurring) || 0} disabled={!cloudReady || period.submitted} onApply={(splits,goals,usualPaycheck) => {
         setPlanner((p) => ({
           ...p,
           categories:(() => {
