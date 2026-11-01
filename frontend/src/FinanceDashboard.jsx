@@ -125,6 +125,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(planner)); }, [planner]);
   const [savingLive, setSavingLive] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [goalLedgerView, setGoalLedgerView] = useState(null);
   const [periodStart, setPeriodStart] = useState(() => new Date().toLocaleDateString("en-CA"));
   const period = planner.periods.find((p) => p.id === planner.selected) || planner.periods[0];
   const paycheck = cleanAmount(period?.paycheck);
@@ -247,7 +248,31 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       </div>
       <article className="finance-panel" style={{ marginBottom: 20 }}>
         <span className="finance-kicker">FINANCIAL GOALS</span>
-        <h3>Track your progress</h3>
+        <h3>{goalLedgerView ? "Allocation history" : "Track your progress"}</h3>
+        <div className="finance-toolbar" style={{ margin: "12px 0" }}>
+          <button type="button" className="finance-add" onClick={() => setGoalLedgerView(null)} aria-pressed={goalLedgerView === null}>Progress</button>
+          {GOAL_IDS.map((id) => <button key={id} type="button" className="finance-add" onClick={() => setGoalLedgerView(id)} aria-pressed={goalLedgerView === id}>{categories.find((c) => c.id === id)?.name || id} ledger</button>)}
+        </div>
+        {goalLedgerView ? <>
+          <p>Submitted paycheck allocations for {categories.find((c) => c.id === goalLedgerView)?.name || goalLedgerView}. Switch back to Progress at any time. Resetting a goal does not erase this history.</p>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <thead><tr><th style={{ padding: 10 }}>Paycheck</th><th style={{ padding: 10 }}>Submitted</th><th style={{ padding: 10, textAlign: "right" }}>Allocated</th></tr></thead>
+              <tbody>
+                {[...planner.periods].filter((p) => p.submitted).reverse().map((p) => (
+                  <tr key={p.id} style={{ borderTop: "1px solid #273541" }}>
+                    <td style={{ padding: 10 }}>{p.name}</td>
+                    <td style={{ padding: 10 }}>{p.submittedAt ? new Date(p.submittedAt).toLocaleDateString() : "Submitted"}</td>
+                    <td style={{ padding: 10, textAlign: "right" }}>{p.submittedAllocations?.[goalLedgerView] == null ? "Not recorded" : dollars(p.submittedAllocations[goalLedgerView] / 100)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!planner.periods.some((p) => p.submitted) && <p>No submitted paychecks yet.</p>}
+          <p><strong>Recorded total: {dollars(planner.periods.filter((p) => p.submitted).reduce((sum, p) => sum + (p.submittedAllocations?.[goalLedgerView] || 0), 0) / 100)}</strong></p>
+          <p style={{ opacity: .7, fontSize: 12 }}>Older submissions may have missing allocation snapshots. History is stored in this browser only.</p>
+        </> : <>
         <p>Set your own targets. Each goal keeps accumulating until you reset it. Progress represents paycheck allocations, not confirmed transfers or payments.</p>
         {GOAL_IDS.map((id) => {
           const goal = planner.goals?.[id] || DEFAULT_GOALS[id];
@@ -270,30 +295,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
             </div>
           </div>;
         })}
-      </article>
-      <article className="finance-panel" style={{ marginBottom: 20 }}>
-        <span className="finance-kicker">ALLOCATION LEDGER</span>
-        <h3>Submitted paycheck history</h3>
-        <p>Each submission records how much you allocated to Expenses, Investments, Savings, and Safe to Spend. Resetting a goal does not erase this history.</p>
-        {[...planner.periods].filter((p) => p.submitted).reverse().map((p) => {
-          const allocations = p.submittedAllocations || {};
-          const entries = Object.entries(allocations);
-          return <details key={p.id} style={{ borderTop: "1px solid #273541", padding: "14px 0" }}>
-            <summary style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <span><strong>{p.name}</strong><span style={{ display: "block", opacity: .7, fontSize: 12 }}>{p.submittedAt ? new Date(p.submittedAt).toLocaleString() : "Submitted"}</span></span>
-              <strong>{dollars((p.submittedPaycheckCents ?? Math.round(cleanAmount(p.paycheck) * 100)) / 100)}</strong>
-            </summary>
-            <div style={{ paddingTop: 12 }}>
-              {entries.map(([id, cents]) => <div key={id} className="finance-category-top" style={{ padding: "5px 0" }}>
-                <span>{p.submittedCategoryNames?.[id] || ({ spend: "Safe to Spend", expenses: "Expenses", investments: "Investments", savings: "Savings" }[id] || id)}</span>
-                <strong>{dollars((Number(cents) || 0) / 100)}</strong>
-              </div>)}
-              {!Object.hasOwn(allocations, "spend") && <p style={{ opacity: .7, fontSize: 12 }}>Safe-to-Spend allocation was not recorded for this older submission.</p>}
-            </div>
-          </details>;
-        })}
-        {!planner.periods.some((p) => p.submitted) && <p>No paychecks submitted yet. Your first submission will appear here.</p>}
-        <p style={{ opacity: .7, fontSize: 12 }}>History is currently saved only in this browser. Allocations are planned amounts, not proof of payment or investment.</p>
+        </>}
       </article>
       <div className="finance-tables">
         {["expenses", "investments", "savings"].map((id) => (
