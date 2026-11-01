@@ -369,6 +369,16 @@ public class GmailService {
         );
     }
 
+    /**
+     * Account-scoped importer entry point: reuse the original production
+     * Gmail fetch, MIME decoding, sender checks and bank-specific parsers.
+     * This method does not save transactions or read shared credentials.
+     */
+    public GmailAlertResponse parseMessageWithAccessToken(String messageId, String accessToken)
+            throws IOException, InterruptedException {
+        return fetchAndParseMessage(messageId, accessToken);
+    }
+
     private GmailAlertResponse fetchAndParseMessage(
             String messageId,
             String accessToken
