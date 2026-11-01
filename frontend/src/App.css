@@ -1611,3 +1611,13 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 .gmail-compact { position: relative; z-index: 15; }
 .gmail-settings[open] { z-index: 100; }
 .gmail-settings-panel { z-index: 101; }
+
+
+.paycheck-ledger { margin: 20px 0; padding: 22px; }
+.paycheck-ledger h3 { margin: 0 0 10px; }
+.paycheck-ledger-scroll { overflow-x: auto; }
+.paycheck-ledger table { width: 100%; border-collapse: collapse; min-width: 430px; }
+.paycheck-ledger th, .paycheck-ledger td { padding: 13px 10px; text-align: left; border-bottom: 1px solid rgba(184,165,255,.18); }
+.paycheck-ledger th { color: #c5b7ff; font-size: .82rem; font-weight: 600; }
+.paycheck-ledger td { color: #f6f2ff; }
+.paycheck-ledger td:last-child { color: #c6ffb3; font-weight: 600; }
