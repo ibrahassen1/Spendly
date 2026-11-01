@@ -363,9 +363,14 @@ function App() {
   };
 
   const fetchTransactions = async () => {
-    // Gmail is disabled until account-scoped OAuth and transactions are implemented.
-    setTransactions([]);
-    return [];
+    const response = await accountFetch("/api/gmail/transactions");
+    if (!response.ok) {
+      setTransactions([]);
+      return [];
+    }
+    const data = await response.json();
+    setTransactions(data);
+    return data;
   };
 
   const fetchMoneyAdjustments = async () => {
@@ -793,7 +798,7 @@ function App() {
 
 
 
-        {activePage === "dashboard" && <FinanceDashboard view="dashboard" safeToSpend={safeToSpend} onBudgetSaved={async (updated) => { setSafeToSpend(updated); await Promise.all([fetchTransactions(), fetchMoneyAdjustments()]); }} />}
+        {activePage === "dashboard" && <FinanceDashboard view="dashboard" safeToSpend={safeToSpend} onBudgetSaved={async (updated) => { setSafeToSpend(updated); await Promise.all([fetchSafeToSpend(), fetchTransactions(), fetchMoneyAdjustments()]); }} />}
         {activePage === "goals" && <FinanceDashboard view="goals" safeToSpend={safeToSpend} />}
         {activePage === "safe" && (
           <>
@@ -892,7 +897,7 @@ function App() {
             </div>
           </details>
         </section>
-        {gmailMessage && <div className="gmail-toast" role="status">{gmailMessage}</div>}
+
         <section className="actions safe-quick-actions">
           <button type="button" className="refresh-button" disabled={!gmailConnection?.connected || gmailSyncBusy} onClick={previewGmail}>
             {gmailSyncBusy ? "Checking Gmail…" : "↻ Preview Gmail Purchases"}
