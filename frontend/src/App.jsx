@@ -251,6 +251,24 @@ function App() {
     else setGmailConnection(null);
   },[isLoaded,isSignedIn,userId]);
   const [activePage, setActivePage] = useState("dashboard");
+  // Always reload the authoritative server balance when returning to Safe to Spend.
+  useEffect(() => {
+    if (activePage !== "safe" || !isLoaded || !isSignedIn || !userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await accountFetch("/api/safe-to-spend");
+        if (!response.ok) return;
+        const updated = await response.json();
+        if (!cancelled) {
+          setSafeToSpend(updated);
+          setBudgetStartDate(updated.startDate);
+        }
+      } catch { /* Keep last displayed value until connectivity returns. */ }
+    })();
+    return () => { cancelled = true; };
+  }, [activePage, isLoaded, isSignedIn, userId]);
+
   const [message, setMessage] = useState("");
 
   const [safeToSpend, setSafeToSpend] =
