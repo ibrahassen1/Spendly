@@ -729,10 +729,10 @@ function App() {
           <>
         {safeToSpend ? (
           <>
-            <section className="safe-card">
+            <section className="safe-card safe-fintech-hero">
               <div className="safe-top">
                 <p className="label">
-                  SAFE TO SPEND
+                  YOUR SPENDABLE BALANCE
                 </p>
 
                 <span className="period">
@@ -762,10 +762,8 @@ function App() {
                 )}
               </h2>
 
-              <p className="safe-subtitle">
-                Available without touching the rest of
-                your money.
-              </p>
+              <p className="safe-subtitle">Spend freely. Your other allocations stay separate.</p>
+              <div className="safe-hero-bars" aria-hidden="true">{[36,55,43,72,51,83,60].map((height,index) => <span key={index} style={{ height: `${height}%` }} />)}</div>
 
               <div className="stats">
                 <div className="stat">
@@ -794,21 +792,21 @@ function App() {
 
           </>
         ) : (
-          <section className="empty-hero">
+          <section className="empty-hero safe-fintech-hero">
             <p className="label">
-              SAFE TO SPEND
+              YOUR SPENDABLE BALANCE
             </p>
 
             <h2>$0.00</h2>
 
-            <p>
-              Your paycheck allocations will appear here once credited. Existing users can restore a one-time opening balance.
-            </p>
+            <p>Your balance appears here when your paycheck is credited.</p>
+            <div className="safe-hero-bars" aria-hidden="true">{[36,55,43,72,51,83,60].map((height,index) => <span key={index} style={{ height: `${height}%` }} />)}</div>
+            <p className="safe-restore-note">Already used Spendly? Restore your previous balance once.</p>
             <button type="button" onClick={restoreOpeningBalance}>Restore existing balance (one time)</button>
           </section>
         )}
 
-        <section className="actions">
+        <section className="actions safe-quick-actions">
           <button type="button" className="refresh-button" disabled title="Gmail transaction syncing is not yet enabled for individual accounts">
             ↻ Refresh Transactions (coming soon)
           </button>
@@ -897,7 +895,7 @@ function App() {
         )}
 
         {(
-          <section className="activity">
+          <section className="activity safe-activity">
             <div className="activity-header">
               <div>
                 <p className="eyebrow">
