@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "spendly.finance-planner.v1";
+const GOAL_IDS = ["expenses", "investments", "savings"];
+const DEFAULT_GOALS = Object.fromEntries(GOAL_IDS.map((id) => [id, { target: "", allocatedCents: 0 }]));
 const COLORS = ["#3ad5aa", "#d5b46d", "#699cf0", "#c68ee8", "#e68f7c", "#6fd0d9", "#b7bd73"];
 const INITIAL = [
   { id: "spend", name: "Safe to Spend", percent: 40 },
@@ -40,9 +42,9 @@ function rebalance(categories, changedId, requested) {
 function loadPlanner() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (saved && Array.isArray(saved.categories) && saved.categories.some((c) => c.id === "spend") && Array.isArray(saved.periods) && saved.periods.length) return { ...saved, categories: rebalance(saved.categories, "spend", saved.categories.find((c) => c.id === "spend").percent) };
+    if (saved && Array.isArray(saved.categories) && saved.categories.some((c) => c.id === "spend") && Array.isArray(saved.periods) && saved.periods.length) return { ...saved, goals: { ...DEFAULT_GOALS, ...saved.goals }, categories: rebalance(saved.categories, "spend", saved.categories.find((c) => c.id === "spend").percent) };
   } catch { /* corrupted storage: start fresh */ }
-  return { categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null };
+  return { goals: DEFAULT_GOALS, categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null };
 }
 
 function AllocationChart({ categories, paycheck }) {
@@ -238,6 +240,32 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
           {customCategories.map((c) => <label className="finance-custom-name" key={c.id}>Rename {c.name}<input value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></label>)}
         </article>
       </div>
+      <article className="finance-panel" style={{ marginBottom: 20 }}>
+        <span className="finance-kicker">FINANCIAL GOALS</span>
+        <h3>Track your progress</h3>
+        <p>Set your own targets. Each goal keeps accumulating until you reset it. Progress represents paycheck allocations, not confirmed transfers or payments.</p>
+        {GOAL_IDS.map((id) => {
+          const goal = planner.goals?.[id] || DEFAULT_GOALS[id];
+          const target = cleanAmount(goal.target);
+          const allocated = (goal.allocatedCents || 0) / 100;
+          const progress = target > 0 ? Math.min(100, allocated / target * 100) : 0;
+          const label = categories.find((c) => c.id === id)?.name || id;
+          return <div key={id} style={{ marginTop: 22 }}>
+            <div className="finance-category-top"><strong>{label}</strong><span>{target > 0 ? progress.toFixed(0) + "%" : "Set a goal"}</span></div>
+            <div role="progressbar" aria-label={label + " goal progress"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} style={{ height: 12, background: "#273541", borderRadius: 12, overflow: "hidden", margin: "10px 0" }}>
+              <div style={{ height: "100%", width: progress + "%", background: id === "expenses" ? "#d5b46d" : id === "investments" ? "#699cf0" : "#3ad5aa", transition: "width .2s" }} />
+            </div>
+            <p>{dollars(allocated)} allocated of {target > 0 ? dollars(target) : "no target yet"}</p>
+            <div className="finance-toolbar">
+              <label>{label} goal ($) <input type="number" min="0" step="0.01" value={goal.target} placeholder="Enter goal" onChange={(e) => setPlanner((p) => ({ ...p, goals: { ...p.goals, [id]: { ...(p.goals?.[id] || DEFAULT_GOALS[id]), target: e.target.value } } }))} /></label>
+              <button type="button" className="finance-add" onClick={() => {
+                if (!window.confirm("Reset " + label + " progress? This will not delete transactions or change balances.")) return;
+                setPlanner((p) => ({ ...p, goals: { ...p.goals, [id]: { ...(p.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents: 0 } } }));
+              }}>Reset progress</button>
+            </div>
+          </div>;
+        })}
+      </article>
       <div className="finance-tables">
         {["expenses", "investments", "savings"].map((id) => (
           <FinanceTable key={id} title={categories.find((c) => c.id === id)?.name || id} allocated={categoryAmount(id)} entries={entriesOf(id)} onAdd={() => addEntry(id)} onChange={changeEntry} onRemove={removeEntry} />
