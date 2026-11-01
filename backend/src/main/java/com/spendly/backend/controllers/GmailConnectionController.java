@@ -29,7 +29,6 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/gmail/connection")
 public class GmailConnectionController {
  private final JdbcTemplate db;
- private final ObjectMapper json;
  private final RestClient http=RestClient.create();
  private final SecureRandom random=new SecureRandom();
  @Value("${GOOGLE_CLIENT_ID:}") private String clientId;
@@ -37,7 +36,7 @@ public class GmailConnectionController {
  @Value("${GOOGLE_GMAIL_REDIRECT_URI:}") private String redirectUri;
  @Value("${GMAIL_TOKEN_ENCRYPTION_KEY:}") private String encryptionKey;
  @Value("${SPENDLY_FRONTEND_URL:http://localhost:5173}") private String frontendUrl;
- public GmailConnectionController(JdbcTemplate db,ObjectMapper json){this.db=db;this.json=json;}
+ public GmailConnectionController(JdbcTemplate db){this.db=db;}
  private void configured(){
   if(clientId.isBlank()||clientSecret.isBlank()||redirectUri.isBlank()||encryptionKey.isBlank())
    throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Gmail connection not configured");
@@ -91,7 +90,7 @@ public class GmailConnectionController {
     +"&redirect_uri="+url(redirectUri)+"&grant_type=authorization_code";
    String body=http.post().uri("https://oauth2.googleapis.com/token")
     .contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form).retrieve().body(String.class);
-   JsonNode tokens=json.readTree(body);
+   JsonNode tokens=new ObjectMapper().readTree(body);
    String refresh=tokens.path("refresh_token").asText("");
    if(refresh.isBlank())throw new IllegalStateException("Google did not return a refresh token");
    db.update("INSERT INTO gmail_connections(user_id,email,encrypted_refresh_token) VALUES(?,?,?) "+
