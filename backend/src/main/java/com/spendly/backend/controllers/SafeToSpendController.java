@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -51,11 +52,15 @@ public class SafeToSpendController {
   }
   jdbc.update("INSERT INTO user_safe_balances(user_id,allocation,start_date) VALUES(?,?,?) ON CONFLICT(user_id) DO NOTHING",
     user,BigDecimal.ZERO,request.paycheckDate());
-  jdbc.update("INSERT INTO user_paycheck_credits(user_id,period_id,paycheck,safe_credit) VALUES(?,?,?,?)",
-    user,request.periodId(),request.paycheck(),request.safeCredit());
+  jdbc.update("INSERT INTO user_paycheck_credits(user_id,period_id,paycheck,safe_credit,paycheck_date) VALUES(?,?,?,?,?)",
+    user,request.periodId(),request.paycheck(),request.safeCredit(),request.paycheckDate());
   jdbc.update("UPDATE user_safe_balances SET allocation=allocation+? WHERE user_id=?",
     request.safeCredit(),user);
   return response(current(jwt));
+ }
+ @GetMapping("/paychecks")
+ public List<Map<String,Object>> paycheckHistory(@AuthenticationPrincipal Jwt jwt){
+  return jdbc.queryForList("SELECT period_id AS \"periodId\", paycheck, safe_credit AS \"safeCredit\", paycheck_date AS \"paycheckDate\", created_at AS \"creditedAt\" FROM user_paycheck_credits WHERE user_id=? ORDER BY paycheck_date DESC NULLS LAST, created_at DESC",jwt.getSubject());
  }
  @GetMapping public SafeToSpendResponse get(@AuthenticationPrincipal Jwt jwt){return response(current(jwt));}
  @PostMapping("/opening-balance") @Transactional
