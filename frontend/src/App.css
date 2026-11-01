@@ -1368,3 +1368,30 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
  .safe-hero-bars { height:58px; }
  .safe-quick-actions { margin-bottom:30px !important; }
 }
+
+/* Persistent floating bottom tab bar, inspired by mobile finance navigation */
+.app { padding-bottom:calc(120px + env(safe-area-inset-bottom, 0px)) !important; }
+.spendly-bottom-nav {
+ position:fixed; z-index:100; bottom:calc(18px + env(safe-area-inset-bottom, 0px));
+ left:50%; transform:translateX(-50%);
+ width:min(440px,calc(100% - 32px)); display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+ padding:8px; gap:5px; border-radius:25px;
+ background:rgba(20,18,38,.94); border:1px solid rgba(153,141,211,.26);
+ box-shadow:0 12px 42px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.07);
+ backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+}
+.bottom-nav-item {
+ appearance:none; border:0; background:transparent; color:#aaa6c3;
+ min-height:58px; padding:8px 4px; display:flex; flex-direction:column;
+ align-items:center; justify-content:center; gap:5px; border-radius:18px !important;
+ font-family:"Fredoka",system-ui,sans-serif !important; font-size:.69rem; font-weight:500 !important;
+ white-space:nowrap; cursor:pointer; transition:background .18s,color .18s;
+}
+.bottom-nav-item svg { width:21px; height:21px; flex-shrink:0; }
+.bottom-nav-item.selected { background:linear-gradient(145deg,#4b3c98,#34296e); color:#fff; }
+.bottom-nav-item:hover:not(.selected) { background:rgba(144,123,255,.11); color:#fff; }
+.bottom-nav-item:focus-visible { outline:2px solid #b5a4ff; outline-offset:2px; }
+@media(max-width:650px) {
+ .spendly-bottom-nav { bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:calc(100% - 26px); border-radius:23px; }
+ .bottom-nav-item { min-height:56px; }
+}
