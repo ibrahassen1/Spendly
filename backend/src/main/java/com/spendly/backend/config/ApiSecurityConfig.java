@@ -28,6 +28,7 @@ public class ApiSecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/gmail/**").denyAll() // Shared Gmail endpoints remain disabled until per-user OAuth and transactions are implemented.
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll())
             .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
