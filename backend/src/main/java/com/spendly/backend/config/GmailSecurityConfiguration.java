@@ -23,12 +23,12 @@ public class GmailSecurityConfiguration {
  @Order(1)
  SecurityFilterChain gmailSecurityFilterChain(HttpSecurity http) throws Exception {
   return http
-   .securityMatcher("/api/gmail/connection/**")
+   .securityMatcher("/api/gmail/**")
    .csrf(csrf -> csrf.disable())
    .cors(cors -> cors.configurationSource(gmailCorsSource()))
    .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
    .authorizeHttpRequests(auth -> auth
-     .requestMatchers(HttpMethod.OPTIONS, "/api/gmail/connection/**").permitAll()
+     .requestMatchers(HttpMethod.OPTIONS, "/api/gmail/**").permitAll()
      .requestMatchers(HttpMethod.GET, "/api/gmail/connection/callback").permitAll()
      .anyRequest().authenticated())
    .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> {}))
@@ -42,7 +42,7 @@ public class GmailSecurityConfiguration {
   c.setAllowedHeaders(List.of("Authorization","Content-Type"));
   c.setMaxAge(3600L);
   UrlBasedCorsConfigurationSource source=new UrlBasedCorsConfigurationSource();
-  source.registerCorsConfiguration("/api/gmail/connection/**",c);
+  source.registerCorsConfiguration("/api/gmail/**",c);
   return source;
  }
 }
