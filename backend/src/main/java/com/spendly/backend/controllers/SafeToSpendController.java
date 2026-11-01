@@ -4,6 +4,7 @@ import com.spendly.backend.models.*;
 import com.spendly.backend.repositories.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,6 +22,11 @@ public class SafeToSpendController {
  private final UserSafeBalanceRepository balances;
  private final UserMoneyAdjustmentRepository adjustments;
  private final JdbcTemplate jdbc;
+ private static final ZoneId TRACKING_ZONE=ZoneId.of("America/New_York");
+ private LocalDate trackingStart(String user,LocalDate fallback){
+  return jdbc.query("SELECT tracking_start_date FROM user_gmail_tracking_settings WHERE user_id=?",
+    (rs,i)->rs.getDate(1).toLocalDate(),user).stream().findFirst().orElse(fallback);
+ }
  public SafeToSpendController(UserSafeBalanceRepository balances,UserMoneyAdjustmentRepository adjustments,JdbcTemplate jdbc){
   this.balances=balances;this.adjustments=adjustments;this.jdbc=jdbc;
  }
@@ -29,7 +35,7 @@ public class SafeToSpendController {
  }
  private SafeToSpendResponse response(UserSafeBalance balance){
   // Gmail spending is intentionally excluded until transactions and OAuth are isolated by account.
-  return new SafeToSpendResponse(balance.getAllocation(),BigDecimal.ZERO,balance.getAllocation(),balance.getStartDate());
+  return new SafeToSpendResponse(balance.getAllocation(),BigDecimal.ZERO,balance.getAllocation(),trackingStart(balance.getUserId(),balance.getStartDate()));
  }
  @PostMapping("/paychecks") @Transactional
  public SafeToSpendResponse creditPaycheck(@AuthenticationPrincipal Jwt jwt,@RequestBody PaycheckCreditRequest request){
@@ -68,11 +74,11 @@ public class SafeToSpendController {
   LocalDate date;
   try { date=LocalDate.parse(request.get("startDate")); }
   catch(Exception e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid start date");}
-  if(date.isAfter(LocalDate.now())||date.isBefore(LocalDate.now().minusYears(2)))
+  if(date.isAfter(LocalDate.now(TRACKING_ZONE))||date.isBefore(LocalDate.now(TRACKING_ZONE).minusYears(2)))
    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Start date must be within the last two years and not in the future");
   UserSafeBalance balance=current(jwt);
-  balance.setStartDate(date);
-  return response(balances.save(balance));
+  jdbc.update("INSERT INTO user_gmail_tracking_settings(user_id,tracking_start_date) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET tracking_start_date=EXCLUDED.tracking_start_date",jwt.getSubject(),date);
+  return response(balance);
  }
 
  @PostMapping("/opening-balance") @Transactional
