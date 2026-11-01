@@ -250,19 +250,13 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
           setSyncMessage("");
         }}>+ Next paycheck</button>}
       </div>
-      <div className="finance-live-sync">
-        <div>
-          <span className="finance-kicker">PAYCHECK</span>
-          <h3>{period.submitted ? "Paycheck saved" : "Ready to save?"}</h3>
-          <p>{period.submitted
-            ? "Your paycheck is saved in your planner."
-            : "Your spending amount: " + dollars(categoryAmount("spend")) + ". Review your split below."}</p>
-        </div>
-        <button type="button" className="finance-add" disabled onClick={saveLiveBudget}>
-          {period.submitted ? "Saved ✓" : "Save paycheck"}
-        </button>
-        {!period.submitted && <span className="finance-submit-note">Secure paycheck crediting is being finalized. Saving is temporarily unavailable.</span>}
-        {syncMessage && <p role="status">{syncMessage}</p>}
+      <div className="finance-paycheck-status" role="status">
+        <span className="finance-paycheck-status-label">PAYCHECK</span>
+        <span className="finance-paycheck-status-value">
+          {period.submitted ? "✓ Saved to planner" : "Not yet submitted"}
+        </span>
+        {!period.submitted && <span className="finance-submit-note">Paycheck crediting is temporarily paused.</span>}
+        {syncMessage && <span className="finance-submit-note">{syncMessage}</span>}
       </div>
       <div className="finance-panels">
         <article className="finance-panel">
