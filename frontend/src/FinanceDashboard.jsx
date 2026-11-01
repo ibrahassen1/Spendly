@@ -227,7 +227,6 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       setSavingLive(false);
     }
   };
-  const [showRecommendation,setShowRecommendation] = useState(false);
   const recurringMonthly = entriesOf("expenses").reduce((sum,e)=>sum+cleanAmount(e.planned),0);
   const goalMonths = Math.max(1,Number(planner.goalTimelineMonths)||18);
   const checksPerYear = {weekly:52,biweekly:26,semimonthly:24,monthly:12}[planner.payFrequency || "biweekly"];
@@ -256,7 +255,6 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         ...custom.map(c=>({...c,percent:0}))];
       return {...p,categories:[{id:"spend",name:"Safe to Spend",percent:100-next.reduce((sum,c)=>sum+c.percent,0)},...next]};
     });
-    setShowRecommendation(false);
   };
   const customCategories = useMemo(() => categories.filter((c) => !["spend", "expenses", "investments", "savings"].includes(c.id)), [categories]);
   return (
@@ -281,20 +279,18 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           setSyncMessage("");
         }}>+ Next paycheck</button>}
       </div>}
-      {view === "dashboard" && paycheck>0 && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
-        <span className="finance-kicker">RECOMMENDED DISTRIBUTION</span>
-        <h3>Suggested paycheck split</h3>
-        {period.submitted ? <p>This paycheck is already saved. Recommendations apply only to a new, unsubmitted paycheck.</p> :
-         !recommendation ? <p>Your recurring monthly expenses exceed this paycheck. Review your expenses before applying a split.</p> : <>
-          <p>Based on {dollars(recurringMonthly)} in recurring monthly bills, {dollars(paycheck)} take-home pay, and your optional goals.</p>
-          <button type="button" className="finance-add" onClick={()=>setShowRecommendation(v=>!v)}>{showRecommendation?"Hide suggestion":"View recommended split"}</button>
-          {showRecommendation && <div className="coach-result" style={{marginTop:16}}>
-            {Object.entries(recommendation).filter(([key])=>["spend","expenses","savings","investments"].includes(key)).map(([key,value])=><div key={key}><span>{({spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"})[key]}</span><strong>{value}% · {dollars(paycheck*value/100)}</strong></div>)}
-            {!recommendation.feasible && <p className="coach-warning">Your goal timeline may be too aggressive. This split reserves room for spending and may require more time to reach your goals.</p>}
-            <button type="button" className="coach-primary" onClick={applyRecommendation}>Apply to pie chart</button>
-          </div>}
-          <p className="finance-submit-note">Preview only. Applying adjusts your planner, not your bank balance. Paycheck crediting remains paused in staging.</p>
-         </>}
+      {view === "dashboard" && paycheck > 0 && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
+        <span className="finance-kicker">YOUR RECOMMENDED SPLIT</span>
+        <h3>Here's how to divide {dollars(paycheck)}</h3>
+        {!recommendation ? <p>Your recurring monthly bills exceed this paycheck. Adjust your expenses or paycheck amount to see a workable split.</p> : <>
+          <p>Based on {dollars(recurringMonthly)} in monthly recurring expenses, your pay schedule, and your saved goals.</p>
+          <div className="coach-result" style={{marginTop:16}}>
+            {Object.entries(recommendation).filter(([key,value])=>["spend","expenses","savings","investments"].includes(key) && (value>0 || key==="spend")).map(([key,value])=><div key={key}><span>{({spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"})[key]}</span><strong>{value}% · {dollars(paycheck*value/100)}</strong></div>)}
+          </div>
+          {!recommendation.feasible && <p className="coach-warning">Your goal timeline may need to be longer to leave room for spending.</p>}
+          {period.submitted ? <p className="finance-submit-note">This paycheck is already saved. Start a new paycheck to apply a new allocation.</p> : <button type="button" className="coach-primary" style={{marginTop:18}} onClick={applyRecommendation}>Apply recommended split</button>}
+          <p className="finance-submit-note">This is a preview. Applying changes the pie chart only; it does not credit your balance.</p>
+        </>}
       </section>}
       {view === "dashboard" && <>
       <div className="finance-paycheck-status" role="status">
