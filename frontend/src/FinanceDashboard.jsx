@@ -275,7 +275,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <h2>{view === "goals" ? "Financial Goals" : "Dashboard"}</h2>
         <p>{view === "goals" ? "Keep your savings, investment, and expense targets in one place." : "Plan your paycheck and see where every dollar is going."}</p>
       </div>
-      {view === "dashboard" && <SpendlyCoach goals={{...planner.goals,timelineMonths:planner.goalTimelineMonths}} disabled={!cloudReady} onSave={({savings,investments,months}) => setPlanner(p=>({...p,goalTimelineMonths:months,goals:{...p.goals,savings:{...(p.goals?.savings || DEFAULT_GOALS.savings),target:savings},investments:{...(p.goals?.investments || DEFAULT_GOALS.investments),target:investments}}}))} />}
+      {view === "dashboard" && <SpendlyCoach goals={{...planner.goals,timelineMonths:planner.goalTimelineMonths}} disabled={!cloudReady} onSave={({savings,investments,months}) => { setPlanner(p=>({...p,goalTimelineMonths:months,goals:{...p.goals,savings:{...(p.goals?.savings || DEFAULT_GOALS.savings),target:savings},investments:{...(p.goals?.investments || DEFAULT_GOALS.investments),target:investments}}})); setRecommendationDismissed(false); }} />}
       {view === "dashboard" && <div className="finance-toolbar">
         <label>Pay schedule <select value={planner.payFrequency || "biweekly"} onChange={(e)=>setPlanner(p=>({...p,payFrequency:e.target.value}))}><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="semimonthly">Twice a month</option><option value="monthly">Monthly</option></select></label>
         <label>Paycheck date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
