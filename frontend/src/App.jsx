@@ -179,12 +179,29 @@ function App() {
   const [gmailConnection, setGmailConnection] = useState(null);
   const [gmailBusy, setGmailBusy] = useState(false);
   const [gmailMessage, setGmailMessage] = useState("");
+  const gmailToastTimer = useRef(null);
+  const notifyGmail = (message) => {
+    setGmailMessage(message);
+    if (gmailToastTimer.current) clearTimeout(gmailToastTimer.current);
+    gmailToastTimer.current = setTimeout(() => setGmailMessage(""), 4000);
+  };
+  useEffect(() => () => { if (gmailToastTimer.current) clearTimeout(gmailToastTimer.current); }, []);
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("gmail");
+    if (result === "connected") notifyGmail("Gmail connected successfully ✓");
+    if (result === "cancelled") notifyGmail("Gmail connection cancelled.");
+    if (result === "connected" || result === "cancelled") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("gmail");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    }
+  }, []);
   const loadGmailConnection = async () => {
     try {
       const res = await accountFetch("/api/gmail/connection/status");
       if (res.ok) setGmailConnection(await res.json());
-      else setGmailMessage("Gmail connection is not available yet.");
-    } catch { setGmailMessage("Unable to check Gmail connection."); }
+      else notifyGmail("Gmail connection is not available yet.");
+    } catch { notifyGmail("Unable to check Gmail connection."); }
   };
   const connectGmail = async () => {
     setGmailBusy(true);
@@ -194,7 +211,7 @@ function App() {
       const data=await res.json();
       if(!data.authorizationUrl?.startsWith("https://accounts.google.com/")) throw new Error("Unexpected authorization URL.");
       window.location.assign(data.authorizationUrl);
-    }catch(e){setGmailMessage(e.message);setGmailBusy(false);}
+    }catch(e){notifyGmail(e.message);setGmailBusy(false);}
   };
   const disconnectGmail = async () => {
     if(!window.confirm("Disconnect Gmail from Spendly?"))return;
@@ -203,8 +220,8 @@ function App() {
       const res=await accountFetch("/api/gmail/connection",{method:"DELETE"});
       if(!res.ok)throw new Error("Unable to disconnect Gmail.");
       await loadGmailConnection();
-      setGmailMessage("Gmail disconnected.");
-    }catch(e){setGmailMessage(e.message);}finally{setGmailBusy(false);}
+      notifyGmail("Gmail disconnected.");
+    }catch(e){notifyGmail(e.message);}finally{setGmailBusy(false);}
   };
   useEffect(()=>{
     if(isLoaded && isSignedIn && userId)loadGmailConnection();
@@ -835,17 +852,24 @@ function App() {
           </section>
         )}
 
-        <section className="budget-card" style={{marginTop:18,marginBottom:18,padding:22}}>
-          <p className="eyebrow">GMAIL CONNECTION</p>
-          <h3 style={{margin:"8px 0 12px"}}>{gmailConnection?.connected ? "Gmail connected" : "Connect your Gmail"}</h3>
-          <p style={{opacity:.75,marginBottom:16}}>{gmailConnection?.connected
-            ? "Your Gmail is connected. Automatic transaction syncing is not enabled yet."
-            : "Connect your own Google account. No emails will be imported or deducted yet."}</p>
-          {gmailConnection?.connected
-            ? <button type="button" className="edit-button" disabled={gmailBusy} onClick={disconnectGmail}>Disconnect Gmail</button>
-            : <button type="button" className="edit-button" disabled={gmailBusy} onClick={connectGmail}>{gmailBusy?"Connecting…":"Connect Gmail"}</button>}
-          {gmailMessage && <p role="status" style={{marginTop:12}}>{gmailMessage}</p>}
+        <section className="gmail-compact" aria-label="Gmail connection">
+          <div className="gmail-compact-info">
+            <span className="gmail-status-dot" aria-hidden="true" />
+            <span>Gmail · {gmailConnection?.connected ? "Connected" : "Not connected"}</span>
+          </div>
+          <details className="gmail-settings">
+            <summary>Manage</summary>
+            <div className="gmail-settings-panel">
+              <p>{gmailConnection?.connected
+                ? "Gmail is connected. Automatic transaction syncing is not enabled yet."
+                : "Connect your Google account to prepare for transaction syncing."}</p>
+              {gmailConnection?.connected
+                ? <button type="button" className="edit-button" disabled={gmailBusy} onClick={disconnectGmail}>Disconnect Gmail</button>
+                : <button type="button" className="edit-button" disabled={gmailBusy} onClick={connectGmail}>{gmailBusy?"Connecting…":"Connect Gmail"}</button>}
+            </div>
+          </details>
         </section>
+        {gmailMessage && <div className="gmail-toast" role="status">{gmailMessage}</div>}
         <section className="actions safe-quick-actions">
           <button type="button" className="refresh-button" disabled title="Gmail transaction syncing is not yet enabled for individual accounts">
             ↻ Refresh Transactions (coming soon)
