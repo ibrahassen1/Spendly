@@ -236,15 +236,20 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
   const investmentsTarget = cleanAmount(planner.goals?.investments?.target);
   const desiredSavings = savingsTarget/(goalMonths*checksPerYear/12);
   const desiredInvestments = investmentsTarget/(goalMonths*checksPerYear/12);
+  const [savingPace, setSavingPace] = useState("moderate");
   const recommendation = (() => {
-    if(paycheck<=0 || expensePerCheck>paycheck) return null;
-    const expenses=Math.ceil(expensePerCheck/paycheck*100);
-    const availableForGoals=Math.max(0,paycheck*(100-expenses)/100-paycheck*.10);
-    const desired=desiredSavings+desiredInvestments;
-    const factor=desired>0?Math.min(1,availableForGoals/desired):0;
-    const savings=Math.floor(desiredSavings*factor/paycheck*100);
-    const investments=Math.floor(desiredInvestments*factor/paycheck*100);
-    return {expenses,savings,investments,spend:100-expenses-savings-investments,feasible:desired<=availableForGoals,desired};
+    if (paycheck <= 0 || expensePerCheck > paycheck) return null;
+    const expenses = Math.min(100, Math.ceil(expensePerCheck / paycheck * 100));
+    const remaining = 100 - expenses;
+    const desiredSavingsPercent = desiredSavings / paycheck * 100;
+    const desiredInvestmentsPercent = desiredInvestments / paycheck * 100;
+    const paceShare = { slow: 0.35, moderate: 0.60, aggressive: 0.85 }[savingPace];
+    const goalPercent = savingsTarget > 0 || investmentsTarget > 0 ? Math.round(remaining * paceShare) : 0;
+    const desiredTotal = desiredSavingsPercent + desiredInvestmentsPercent;
+    const savings = savingsTarget > 0 ? (investmentsTarget > 0 && desiredTotal > 0 ? Math.round(goalPercent * desiredSavingsPercent / desiredTotal) : goalPercent) : 0;
+    const investments = investmentsTarget > 0 ? goalPercent - savings : 0;
+    return { expenses, savings, investments, spend: 100 - expenses - savings - investments,
+      feasible: desiredTotal <= goalPercent, desired: desiredSavings + desiredInvestments };
   })();
   const applyRecommendation=()=>{
     if(!recommendation || period.submitted) return;
@@ -283,12 +288,20 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       {view === "dashboard" && paycheck > 0 && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
         <span className="finance-kicker">YOUR RECOMMENDED SPLIT</span>
         <h3>Here's how to divide {dollars(paycheck)}</h3>
+        <div style={{margin:"18px 0 22px"}}>
+          <label htmlFor="saving-pace" style={{display:"block",marginBottom:9}}>How fast do you want to reach your goals?</label>
+          <select id="saving-pace" value={savingPace} onChange={(e)=>setSavingPace(e.target.value)} style={{width:"100%",maxWidth:360}}>
+            <option value="slow">Relaxed · more spending money</option>
+            <option value="moderate">Balanced · save steadily</option>
+            <option value="aggressive">Aggressive · prioritize goals</option>
+          </select>
+        </div>
         {!recommendation ? <p>Your recurring monthly bills exceed this paycheck. Adjust your expenses or paycheck amount to see a workable split.</p> : <>
-          <p>Based on {dollars(recurringMonthly)} in monthly recurring expenses, your pay schedule, and your saved goals.</p>
+          <p>Based on {dollars(recurringMonthly)} in monthly recurring expenses, your pay schedule, goals, and chosen pace.</p>
           <div className="coach-result" style={{marginTop:16}}>
             {Object.entries(recommendation).filter(([key,value])=>["spend","expenses","savings","investments"].includes(key) && (value>0 || key==="spend")).map(([key,value])=><div key={key}><span>{({spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"})[key]}</span><strong>{value}% · {dollars(paycheck*value/100)}</strong></div>)}
           </div>
-          {!recommendation.feasible && <p className="coach-warning">Your goal timeline may need to be longer to leave room for spending.</p>}
+          {!recommendation.feasible && <p className="coach-warning">At this pace, your goals may take longer than your selected timeline. You can adjust the split or timeline.</p>}
           {period.submitted ? <p className="finance-submit-note">This paycheck is already saved. Start a new paycheck to apply a new allocation.</p> : <button type="button" className="coach-primary" style={{marginTop:18}} onClick={applyRecommendation}>Apply recommended split</button>}
           <p className="finance-submit-note">This is a preview. Applying changes the pie chart only; it does not credit your balance.</p>
         </>}
