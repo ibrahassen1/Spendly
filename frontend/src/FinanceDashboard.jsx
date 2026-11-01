@@ -121,6 +121,7 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
 export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "dashboard" }) {
   const { getToken, userId } = useAuth();
   const [planner, setPlanner] = useState(loadPlanner);
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [cloudReady, setCloudReady] = useState(false);
   const [cloudHasData, setCloudHasData] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("Loading your account planner…");
@@ -319,7 +320,11 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           {categories.map((c, i) => (
             <div className="finance-category" key={c.id}>
               <div className="finance-category-top">
-                {c.id === "spend" ? <span style={{ color: COLORS[i % COLORS.length] }}>{c.name}</span> : <input className="finance-category-name-inline" aria-label={"Edit category name: " + c.name} title="Click to rename category" value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} style={{color:COLORS[i % COLORS.length],background:"transparent",border:"1px solid transparent",borderRadius:8,padding:"4px 6px",font:"inherit",fontSize:"inherit",width:"min(75%, 330px)",minWidth:0}} onFocus={(e)=>e.target.select()} />}
+                <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0,flex:"1 1 auto"}}>
+                  {editingCategoryId === c.id ? <input autoFocus aria-label={"Rename " + c.name} value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? {...x,name:e.target.value} : x))} onBlur={() => setEditingCategoryId(null)} onKeyDown={(e)=>{if(e.key==="Enter"||e.key==="Escape"){e.currentTarget.blur();}}} style={{color:COLORS[i % COLORS.length],background:"#100e20",border:"1px solid #a28bff",borderRadius:12,padding:"8px 12px",font:"inherit",width:"min(100%, 300px)",boxSizing:"border-box"}} /> :
+                    <span style={{color:COLORS[i % COLORS.length]}}>{c.name}</span>}
+                  {c.id !== "spend" && editingCategoryId !== c.id && <button type="button" aria-label={"Edit " + c.name + " name"} title="Rename category" onClick={()=>setEditingCategoryId(c.id)} style={{border:"1px solid #39334f",background:"#201b35",color:"#d7ccff",borderRadius:12,padding:"6px 10px",cursor:"pointer",font:"inherit",fontSize:14}}>✎</button>}
+                </div>
                 <strong>{dollars(categoryAmount(c.id))}</strong>
               </div>
               <div className="finance-category-controls">
