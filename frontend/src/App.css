@@ -1202,15 +1202,16 @@ body,button,input,select,textarea,.page-tab,.activity-tab,.eyebrow,.label,.finan
 .finance-submit-note { color:#9b96b4; font-size:.72rem; line-height:1.4; }
 @media(max-width:650px) { .finance-live-sync .finance-add { width:100%; } }
 
-/* Soft rounded type from the mobile-finance reference, without heavy bold numerals */
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
-:root { --reference-font:"Quicksand","Avenir Next",sans-serif; }
+/* Circular-inspired fintech typography. Use licensed Circular Std if installed,
+   otherwise the close, freely hosted Plus Jakarta Sans fallback. */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+:root { --reference-font:"Circular Std","Circular Spotify Text","Plus Jakarta Sans","Avenir Next",sans-serif; }
 body,button,input,select,textarea,.page-tab,.activity-tab,.eyebrow,.label,.finance-kicker,
 .app-header h1,.finance-heading h2,.section-heading h2,.activity-header h2,.finance-panel h3,.finance-live-sync h3,.finance-final h3,
 .safe-card .amount,.empty-hero h2,.finance-final strong,.stat strong,.transaction-amount {
-  font-family:var(--reference-font) !important;
+ font-family:var(--reference-font) !important;
 }
-.app-header h1,.finance-heading h2,.section-heading h2,.activity-header h2,.finance-panel h3,.finance-live-sync h3 { font-weight:600 !important; letter-spacing:-.04em; }
-.safe-card .amount,.empty-hero h2,.finance-final strong,.stat strong,.transaction-amount { font-weight:400 !important; letter-spacing:-.045em; }
+.app-header h1,.finance-heading h2,.section-heading h2,.activity-header h2,.finance-panel h3,.finance-live-sync h3 { font-weight:600 !important; letter-spacing:-.035em; }
+.safe-card .amount,.empty-hero h2,.finance-final strong,.stat strong,.transaction-amount { font-weight:500 !important; letter-spacing:-.03em; font-variant-numeric:lining-nums tabular-nums; }
 button,.page-tab,.activity-tab { font-weight:600 !important; }
-.eyebrow,.label,.finance-kicker { font-weight:700 !important; }
+.eyebrow,.label,.finance-kicker { font-weight:600 !important; letter-spacing:.07em; }
