@@ -3,8 +3,8 @@ import { useState } from "react";
 // Guided local MVP: no model calls, API keys, or sensitive account data shared.
 const money = (n) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
 const questions = [
-  { key:"savingsGoal", label:"How much do you want to save?", hint:"Total savings target (e.g. 15000)", type:"number" },
-  { key:"investingGoal", label:"How much do you want to invest?", hint:"Total investment contribution goal (e.g. 1000)", type:"number" },
+  { key:"savingsGoal", label:"Any savings goal? (Optional)", hint:"Enter 0 if saving isn’t a priority", type:"number" },
+  { key:"investingGoal", label:"Want to invest? (Optional)", hint:"Enter 0 if you don’t want to invest", type:"number" },
   { key:"paycheck", label:"How much is your usual take-home paycheck?", hint:"Amount after taxes", type:"number" },
   { key:"frequency", label:"How often do you get paid?", type:"select", options:[["weekly","Every week"],["biweekly","Every 2 weeks"],["semimonthly","Twice a month"],["monthly","Every month"]] },
   { key:"expenses", label:"How much of each paycheck goes to essentials?", hint:"Rent, bills, groceries, transportation", type:"number" },
@@ -28,7 +28,7 @@ function suggest(values) {
   const factor = desired > 0 ? Math.min(1,room/desired) : 0;
   const savings = Math.floor(savingPerCheck*factor/paycheck*100);
   const investments = Math.floor(investingPerCheck*factor/paycheck*100);
-  const expenses = Math.ceil(essentials/paycheck*100);
+  const expenses = Math.min(100,Math.ceil(essentials/paycheck*100));
   const spend = Math.max(0,100-expenses-savings-investments);
   return {splits:{spend,expenses,investments,savings},goals,desired,available,feasible:desired<=room,checks,perCheck:{savings:savingPerCheck,investments:investingPerCheck}};
 }
@@ -41,7 +41,7 @@ export default function SpendlyCoach({onApply,disabled=false}) {
  const q=questions[step];
  const next=()=>{
   if(["savingsGoal","investingGoal"].includes(q.key) && (values[q.key]==="" || !Number.isFinite(Number(values[q.key])) || Number(values[q.key])<0)) return setError("Enter a goal amount of $0 or more.");
-  if(q.key==="investingGoal" && Number(values.savingsGoal)+Number(values.investingGoal)<=0) return setError("Add at least one savings or investment goal.");
+
   if(q.key==="paycheck" && !(Number(values.paycheck)>0)) return setError("Enter a paycheck greater than $0.");
   if(q.key==="expenses" && !(Number(values.expenses)>=0 && Number(values.expenses)<Number(values.paycheck))) return setError("Essentials must be less than your paycheck.");
   if(q.key==="months" && !(Number(values.months)>0 && Number(values.months)<=600)) return setError("Enter a realistic timeframe in months.");
@@ -68,7 +68,7 @@ export default function SpendlyCoach({onApply,disabled=false}) {
     <div className="coach-result">
      {Object.entries(result.splits).map(([key,pct])=><div key={key}><span>{({spend:"Safe to Spend",expenses:"Essentials",investments:"Investments",savings:"Savings"})[key]}</span><strong>{pct}% · {money(Number(values.paycheck)*pct/100)}</strong></div>)}
     </div>
-    <p className="coach-disclaimer">To meet both goals in {values.months} months, you would need about {money(result.desired)} per paycheck for savings and investments.</p>
+    <p className="coach-disclaimer">{result.desired>0 ? `To reach your chosen goals in ${values.months} months, you would need about ${money(result.desired)} per paycheck.` : "No savings or investment targets selected. Your plan focuses on essentials and spendable money."}</p>
     {!result.feasible && <p className="coach-warning">That pace would leave too little room for essentials and everyday spending. This plan reduces goal contributions to fit your paycheck. Consider a longer timeline or lower targets.</p>}
     <p className="coach-disclaimer">Planning estimate, not investment advice. Amounts are targets, not guaranteed returns. Applying changes only your unsubmitted planner—not your bank balance or prior paychecks.</p>
     <div className="coach-footer"><button type="button" className="coach-secondary" onClick={()=>{setResult(null);setStep(0);}}>Start over</button><button type="button" className="coach-primary" disabled={disabled} onClick={()=>{onApply(result.splits,result.goals,values.paycheck);setOpen(false);}}>Use this plan</button></div>
