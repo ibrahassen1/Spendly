@@ -717,11 +717,7 @@ function App() {
           <div className="status-dot" />
         </header>
 
-        <nav className="page-tabs" aria-label="Spendly pages">
-          <button type="button" className={activePage === "dashboard" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("dashboard")}>Dashboard</button>
-          <button type="button" className={activePage === "safe" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("safe")}>Safe to Spend</button>
-          <button type="button" className={activePage === "goals" ? "page-tab selected" : "page-tab"} onClick={() => setActivePage("goals")}>Goals</button>
-        </nav>
+
 
         {activePage === "dashboard" && <FinanceDashboard view="dashboard" safeToSpend={safeToSpend} onBudgetSaved={async (updated) => { setSafeToSpend(updated); await Promise.all([fetchTransactions(), fetchMoneyAdjustments()]); }} />}
         {activePage === "goals" && <FinanceDashboard view="goals" safeToSpend={safeToSpend} />}
@@ -1184,6 +1180,20 @@ function App() {
           </button>
         </div>
       )}
+      <nav className="spendly-bottom-nav" aria-label="Spendly pages">
+        <button type="button" aria-current={activePage === "dashboard" ? "page" : undefined} className={activePage === "dashboard" ? "bottom-nav-item selected" : "bottom-nav-item"} onClick={() => setActivePage("dashboard")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button type="button" aria-current={activePage === "safe" ? "page" : undefined} className={activePage === "safe" ? "bottom-nav-item selected" : "bottom-nav-item"} onClick={() => setActivePage("safe")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="3"/><path d="M3 10h18M7 3h10"/><circle cx="16.5" cy="15.5" r="1"/></svg>
+          <span>Safe to Spend</span>
+        </button>
+        <button type="button" aria-current={activePage === "goals" ? "page" : undefined} className={activePage === "goals" ? "bottom-nav-item selected" : "bottom-nav-item"} onClick={() => setActivePage("goals")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>
+          <span>Goals</span>
+        </button>
+      </nav>
     </main>
   );
 }
