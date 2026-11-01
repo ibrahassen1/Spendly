@@ -3,7 +3,7 @@
 }
 
 html {
-  background: #05090c;
+  background: #050505;
 }
 
 body {
@@ -16,8 +16,8 @@ body {
       rgba(0, 224, 255, 0.08),
       transparent 28%
     ),
-    #05090c;
-  color: #e8fbff;
+    #050505;
+  color: #f3f4ef;
   font-family:
     Inter,
     ui-sans-serif,
@@ -67,12 +67,12 @@ button {
   font-size: clamp(1.6rem, 7vw, 2.25rem);
   line-height: 1.05;
   letter-spacing: -0.055em;
-  color: #f2fdff;
+  color: #fafbf7;
 }
 
 .eyebrow {
   margin: 0;
-  color: #00d9ff;
+  color: #b8ff26;
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.18em;
@@ -83,8 +83,8 @@ button {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #00e5ff;
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.9);
+  background: #b8ff26;
+  box-shadow: 0 0 12px rgba(184, 255, 38, 0.9);
 }
 
 .status-dot {
@@ -96,12 +96,12 @@ button {
   overflow: hidden;
   padding: 26px;
   margin-bottom: 14px;
-  border: 1px solid rgba(0, 217, 255, 0.28);
+  border: 1px solid rgba(184, 255, 38, 0.28);
   border-radius: 24px;
   background:
     linear-gradient(
       145deg,
-      rgba(0, 217, 255, 0.12),
+      rgba(184, 255, 38, 0.12),
       rgba(10, 21, 28, 0.92) 50%
     );
   box-shadow:
@@ -117,7 +117,7 @@ button {
   top: -100px;
   right: -70px;
   border-radius: 50%;
-  background: rgba(0, 229, 255, 0.14);
+  background: rgba(184, 255, 38, 0.14);
   filter: blur(30px);
 }
 
@@ -131,7 +131,7 @@ button {
 
 .label {
   margin: 0;
-  color: #82efff;
+  color: #b8ff26;
   font-size: 0.76rem;
   font-weight: 800;
   letter-spacing: 0.15em;
@@ -146,11 +146,11 @@ button {
   position: relative;
   z-index: 1;
   margin: 16px 0 2px;
-  color: #42eaff;
+  color: #f5f6f2;
   font-size: clamp(3.6rem, 16vw, 5rem);
   line-height: 1;
   letter-spacing: -0.07em;
-  text-shadow: 0 0 28px rgba(0, 229, 255, 0.16);
+  text-shadow: 0 0 28px rgba(184, 255, 38, 0.16);
 }
 
 .amount.negative {
@@ -159,7 +159,7 @@ button {
 }
 
 .amount.positive {
-  color: #22c55e;
+  color: #b8ff26;
 }
 
 .safe-subtitle {
@@ -180,7 +180,7 @@ button {
 
 .stat {
   padding: 13px 14px;
-  border: 1px solid rgba(124, 239, 255, 0.08);
+  border: 1px solid rgba(184, 255, 38, 0.08);
   border-radius: 14px;
   background: rgba(1, 8, 12, 0.48);
 }
@@ -197,7 +197,7 @@ button {
 }
 
 .stat strong {
-  color: #c8f8ff;
+  color: #f4f6ef;
   font-size: 1rem;
 }
 
@@ -232,9 +232,9 @@ button:disabled {
 .refresh-button,
 .save-button,
 .empty-hero button {
-  color: #001217;
-  background: #00d9ff;
-  box-shadow: 0 0 24px rgba(0, 217, 255, 0.12);
+  color: #101407;
+  background: #b8ff26;
+  box-shadow: 0 0 24px rgba(184, 255, 38, 0.12);
 }
 
 .refresh-button span {
@@ -244,9 +244,9 @@ button:disabled {
 }
 
 .edit-button {
-  color: #8fefff;
-  border: 1px solid rgba(0, 217, 255, 0.19);
-  background: #091217;
+  color: #d9f7a5;
+  border: 1px solid rgba(184, 255, 38, 0.19);
+  background: #101110;
 }
 
 .spin {
@@ -262,14 +262,14 @@ button:disabled {
 .empty-hero {
   padding: 27px;
   margin-bottom: 24px;
-  border: 1px solid rgba(0, 217, 255, 0.2);
+  border: 1px solid rgba(184, 255, 38, 0.2);
   border-radius: 24px;
-  background: #091116;
+  background: #101110;
 }
 
 .empty-hero h2 {
   margin: 12px 0 5px;
-  color: #42eaff;
+  color: #f5f6f2;
   font-size: 3.4rem;
   letter-spacing: -0.07em;
 }
@@ -287,9 +287,9 @@ button:disabled {
 .budget-card {
   padding: 22px;
   margin-bottom: 26px;
-  border: 1px solid #15262d;
+  border: 1px solid #282b27;
   border-radius: 20px;
-  background: #081015;
+  background: #111210;
 }
 
 .section-heading {
@@ -298,7 +298,7 @@ button:disabled {
 
 .section-heading h2 {
   margin: 5px 0 0;
-  color: #e8fbff;
+  color: #f3f4ef;
   font-size: 1.2rem;
 }
 
@@ -314,16 +314,16 @@ button:disabled {
   width: 100%;
   margin-top: 7px;
   outline: none;
-  border: 1px solid #18313a;
+  border: 1px solid #30342c;
   border-radius: 13px;
   padding: 13px 14px;
-  color: #bff6ff;
+  color: #f4f6ef;
   background: #050b0e;
 }
 
 .budget-card input:focus {
-  border-color: rgba(0, 217, 255, 0.65);
-  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.07);
+  border-color: rgba(184, 255, 38, 0.65);
+  box-shadow: 0 0 0 3px rgba(184, 255, 38, 0.07);
 }
 
 input[type="date"] {
@@ -351,7 +351,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   z-index: 1;
   top: 20px;
   left: 14px;
-  color: #00d9ff;
+  color: #b8ff26;
 }
 
 .money-input input {
@@ -371,7 +371,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .message {
   margin: -10px 0 24px;
-  color: #7cecff;
+  color: #b8ff26;
   text-align: center;
   font-size: 0.8rem;
 }
@@ -389,7 +389,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .activity-header h2 {
   margin: 4px 0 0;
-  color: #e5faff;
+  color: #f3f4ef;
   font-size: 1.25rem;
   letter-spacing: -0.025em;
 }
@@ -405,9 +405,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   gap: 5px;
   padding: 4px;
   margin-bottom: 13px;
-  border: 1px solid #102229;
+  border: 1px solid #252825;
   border-radius: 14px;
-  background: #070e12;
+  background: #0d0e0d;
 }
 
 .activity-tab {
@@ -420,10 +420,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .activity-tab.active {
-  color: #bff6ff;
-  background: rgba(0, 217, 255, 0.1);
+  color: #f4f6ef;
+  background: rgba(184, 255, 38, 0.1);
   box-shadow:
-    inset 0 0 0 1px rgba(0, 217, 255, 0.14);
+    inset 0 0 0 1px rgba(184, 255, 38, 0.14);
 }
 
 .adjustment-summary {
@@ -432,9 +432,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   justify-content: space-between;
   padding: 14px 16px;
   margin-bottom: 10px;
-  border: 1px solid #102229;
+  border: 1px solid #252825;
   border-radius: 14px;
-  background: #070e12;
+  background: #0d0e0d;
 }
 
 .adjustment-summary span {
@@ -449,17 +449,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .transaction-list {
   overflow: hidden;
-  border: 1px solid #102229;
+  border: 1px solid #252825;
   border-radius: 20px;
-  background: #070e12;
+  background: #0d0e0d;
 }
 
 .swipe-container {
   position: relative;
   overflow: hidden;
   width: 100%;
-  background: #070e12;
-  border-bottom: 1px solid #102027;
+  background: #0d0e0d;
+  border-bottom: 1px solid #252825;
 }
 
 .swipe-container:last-child {
@@ -535,11 +535,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   align-items: center;
   width: 100%;
   padding: 16px;
-  background: #070e12;
+  background: #0d0e0d;
 }
 
 .transaction-list > .transaction-row:not(:last-child) {
-  border-bottom: 1px solid #102027;
+  border-bottom: 1px solid #252825;
 }
 
 .swipe-row {
@@ -562,15 +562,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   width: 38px;
   height: 38px;
   place-items: center;
-  border: 1px solid rgba(0, 217, 255, 0.18);
+  border: 1px solid rgba(184, 255, 38, 0.18);
   border-radius: 12px;
-  color: #43e8ff;
-  background: rgba(0, 217, 255, 0.07);
+  color: #b8ff26;
+  background: rgba(184, 255, 38, 0.07);
   font-weight: 800;
 }
 
 .adjustment-icon {
-  color: #22c55e;
+  color: #b8ff26;
   border-color: rgba(34, 197, 94, 0.2);
   background: rgba(34, 197, 94, 0.08);
 }
@@ -588,7 +588,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .merchant {
   overflow: hidden;
   margin: 0 0 5px;
-  color: #cbedf2;
+  color: #e8eae3;
   font-size: 0.84rem;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -602,13 +602,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .transaction-amount {
-  color: #70eaff;
+  color: #e7f8bf;
   font-size: 0.86rem;
   white-space: nowrap;
 }
 
 .positive-adjustment {
-  color: #22c55e !important;
+  color: #b8ff26 !important;
 }
 
 .negative-adjustment {
@@ -625,7 +625,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .no-transactions p {
   margin: 0 0 6px;
-  color: #bdeef5;
+  color: #e8eae3;
   font-weight: 700;
 }
 
@@ -652,7 +652,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   padding: 25px;
   border: 1px solid rgba(255, 95, 109, 0.22);
   border-radius: 22px;
-  background: #0a1217;
+  background: #131413;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
   text-align: center;
 }
@@ -694,7 +694,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .delete-description strong {
-  color: #22c55e;
+  color: #b8ff26;
 }
 
 .modal-actions {
@@ -731,12 +731,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border: 1px solid #18313a;
+  border: 1px solid #30342c;
   border-radius: 16px;
-  background: #0c171c;
+  background: #131413;
   box-shadow:
     0 18px 50px rgba(0, 0, 0, 0.55),
-    0 0 20px rgba(0, 217, 255, 0.05);
+    0 0 20px rgba(184, 255, 38, 0.05);
   transform: translateX(-50%);
   animation: undo-toast-in 0.22s ease;
 }
@@ -748,7 +748,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .undo-toast-text strong {
-  color: #e8fbff;
+  color: #f3f4ef;
   font-size: 0.82rem;
 }
 
@@ -760,7 +760,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .undo-button {
   flex-shrink: 0;
   padding: 8px 10px;
-  color: #00d9ff;
+  color: #b8ff26;
   background: transparent;
   font-size: 0.75rem;
   font-weight: 850;
@@ -829,7 +829,7 @@ footer {
 .page-tabs { display:flex; gap:6px; padding:5px; margin:0 0 22px; border:1px solid #21303a; border-radius:14px; background:#0c161d; }
 .page-tab { flex:1; background:transparent; color:#91a5ae; padding:12px 10px; border-radius:10px; font-size:.88rem; }
 .page-tab.selected { background:#243540; color:#f0fcff; box-shadow:inset 0 0 0 1px #37505a; }
-.finance-page { color:#e8fbff; }
+.finance-page { color:#f3f4ef; }
 .finance-heading { margin-bottom:22px; }
 .finance-heading h2 { margin:6px 0; font-size:2rem; letter-spacing:-.05em; }
 .finance-heading p:not(.eyebrow), .finance-panel p, .finance-final p { color:#8ca2aa; line-height:1.6; font-size:.86rem; }
@@ -870,8 +870,25 @@ footer {
 
 .finance-live-sync { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:20px; border:1px solid #36554a; border-radius:18px; background:#10211e; margin:16px 0; }
 .finance-live-sync > div { flex:1; min-width:220px; }
-.finance-live-sync h3 { color:#e8fbff; margin:10px 0 6px; }
+.finance-live-sync h3 { color:#f3f4ef; margin:10px 0 6px; }
 .finance-live-sync p { color:#9eb7b2; font-size:.82rem; line-height:1.5; }
 .finance-live-sync label { display:flex; flex-direction:column; gap:5px; color:#c3d6d0; font-size:.78rem; max-width:240px; margin-top:12px; }
 .finance-live-sync input { background:#071218; color:#eaf6fa; border:1px solid #426158; border-radius:9px; padding:10px; }
 .finance-live-sync button:disabled { opacity:.5; cursor:not-allowed; }
+
+/* Spendly graphite / acid-lime visual refresh. Layout and functionality unchanged. */
+:root { color-scheme: dark; }
+html, body { background: #050505; }
+body { background: radial-gradient(ellipse at 50% -28%, rgba(184,255,38,.045), transparent 48%), #050505; color: #f3f4ef; font-family: Inter, "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+.app-header h1, .finance-heading h2 { letter-spacing: -.065em; font-weight: 800; }
+.safe-card, .empty-hero, .finance-panel, .finance-live-sync { box-shadow: none; }
+.safe-card::after { opacity: .25; }
+.amount, .empty-hero h2 { text-shadow: none; font-variant-numeric: tabular-nums; }
+.amount.positive { color: #f4f6ef; }
+button { transition: background .18s ease, border-color .18s ease, transform .15s ease, opacity .15s ease; }
+button:focus-visible, input:focus-visible { outline: 2px solid #b8ff26; outline-offset: 3px; }
+button:disabled { opacity: .5; }
+.refresh-button, .save-button, .empty-hero button { box-shadow: none; font-weight: 800; }
+.activity-tab.active { background: #1d2610; }
+.transaction-icon { background: #1b2410; }
+::selection { background: #b8ff26; color: #080a05; }
