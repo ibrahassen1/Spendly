@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useAuth } from "@clerk/react";
+import SpendlyCoach from "./SpendlyCoach.jsx";
 
 const STORAGE_KEY = "spendly.finance-planner.v1";
 const GOAL_IDS = ["expenses", "investments", "savings"];
@@ -240,6 +241,16 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <h2>{view === "goals" ? "Financial Goals" : "Dashboard"}</h2>
         <p>{view === "goals" ? "Keep your savings, investment, and expense targets in one place." : "Plan your paycheck and see where every dollar is going."}</p>
       </div>
+      {view === "dashboard" && <SpendlyCoach disabled={!cloudReady || period.submitted} onApply={(splits,goals,usualPaycheck) => {
+        setPlanner((p) => ({
+          ...p,
+          categories:p.categories.map(c => ({...c,percent:splits[c.id] ?? 0})),
+          goals:{...p.goals,
+            savings:{...(p.goals?.savings || DEFAULT_GOALS.savings),target:goals.savings ? String(goals.savings) : (p.goals?.savings?.target || "")},
+            investments:{...(p.goals?.investments || DEFAULT_GOALS.investments),target:goals.investments ? String(goals.investments) : (p.goals?.investments?.target || "")}},
+          periods:p.periods.map(x=>x.id===period.id ? {...x,paycheck:String(usualPaycheck)} : x)
+        }));
+      }} />}
       {view === "dashboard" && <div className="finance-toolbar">
         <label>Paycheck date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
         <label>Paycheck amount ($) <input type="number" min="0" step="0.01" placeholder="Enter take-home pay" value={period.paycheck} disabled={Boolean(period.submitted)} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
