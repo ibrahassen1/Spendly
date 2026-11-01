@@ -237,6 +237,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
   const desiredSavings = savingsTarget/(goalMonths*checksPerYear/12);
   const desiredInvestments = investmentsTarget/(goalMonths*checksPerYear/12);
   const [savingPace, setSavingPace] = useState("moderate");
+  const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const recommendation = (() => {
     if (paycheck <= 0 || expensePerCheck > paycheck) return null;
     const expenses = Math.min(100, Math.ceil(expensePerCheck / paycheck * 100));
@@ -261,6 +262,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         ...custom.map(c=>({...c,percent:0}))];
       return {...p,categories:[{id:"spend",name:"Safe to Spend",percent:100-next.reduce((sum,c)=>sum+c.percent,0)},...next]};
     });
+    setRecommendationDismissed(true);
   };
   const customCategories = useMemo(() => categories.filter((c) => !["spend", "expenses", "investments", "savings"].includes(c.id)), [categories]);
   return (
@@ -285,7 +287,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           setSyncMessage("");
         }}>+ Next paycheck</button>}
       </div>}
-      {view === "dashboard" && paycheck > 0 && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
+      {view === "dashboard" && paycheck > 0 && !recommendationDismissed && <section className="finance-panel" style={{marginBottom:20,padding:"22px 26px"}}>
         <span className="finance-kicker">YOUR RECOMMENDED SPLIT</span>
         <h3>Here's how to divide {dollars(paycheck)}</h3>
         <div style={{margin:"18px 0 22px"}}>
