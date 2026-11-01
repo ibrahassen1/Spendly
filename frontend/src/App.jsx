@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import FinanceDashboard from "./FinanceDashboard.jsx";
+import { useAuth } from "@clerk/react";
 
-const API_BASE_URL =
-  "https://spendly-production-1bdf.up.railway.app";
+const API_BASE_URL = "https://spendly-staging-staging.up.railway.app";
 
 function SwipeableTransaction({
   transaction,
@@ -167,6 +167,15 @@ function SwipeableTransaction({
 }
 
 function App() {
+  const { getToken, userId, isLoaded, isSignedIn } = useAuth();
+  const accountFetch = async (path, options = {}) => {
+    const token = await getToken();
+    if (!token) throw new Error("Sign in to access your account.");
+    return fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: { ...options.headers, Authorization: `Bearer ${token}` },
+    });
+  };
   const [activePage, setActivePage] = useState("dashboard");
   const [message, setMessage] = useState("");
 
@@ -264,8 +273,7 @@ function App() {
   };
 
   const fetchSafeToSpend = async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/safe-to-spend`
+    const response = await accountFetch(`/api/safe-to-spend`
     );
 
     if (!response.ok) {
@@ -281,8 +289,7 @@ function App() {
   };
 
   const fetchTransactions = async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/gmail/recent`
+    const response = await accountFetch(`/api/gmail/recent`
     );
 
     if (!response.ok) {
@@ -295,12 +302,11 @@ function App() {
 
     setTransactions(data);
 
-    return data;
+    return data; */
   };
 
   const fetchMoneyAdjustments = async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/safe-to-spend/adjustments`
+    const response = await accountFetch(`/api/safe-to-spend/adjustments`
     );
 
     if (!response.ok) {
@@ -317,6 +323,10 @@ function App() {
   };
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn || !userId) return;
+    setSafeToSpend(null);
+    setMoneyAdjustments([]);
+    setTransactions([]);
     const loadDashboard = async () => {
       try {
         await Promise.all([
@@ -338,7 +348,7 @@ function App() {
         clearTimeout(undoTimerRef.current);
       }
     };
-  }, []);
+  }, [isLoaded, isSignedIn, userId]);
 
   const openEditBudget = () => {
     if (safeToSpend) {
@@ -393,8 +403,7 @@ function App() {
         );
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/safe-to-spend/allocation`,
+      const response = await accountFetch(`/api/safe-to-spend/allocation`,
         {
           method: "POST",
           headers: {
@@ -458,8 +467,7 @@ function App() {
         );
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/safe-to-spend/adjustments`,
+      const response = await accountFetch(`/api/safe-to-spend/adjustments`,
         {
           method: "POST",
           headers: {
@@ -503,14 +511,14 @@ function App() {
 
   const handleRefresh = async () => {
     try {
+      throw new Error("Gmail syncing is disabled until each account has its own secure connection.");
       setLoading(true);
 
       setMessage(
         "Checking for new purchases..."
       );
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/gmail/refresh`,
+      const response = await accountFetch(`/api/gmail/refresh`,
         {
           method: "POST",
         }
@@ -580,13 +588,13 @@ function App() {
       }
 
       try {
+        throw new Error("Gmail transaction editing is disabled until account isolation is complete.");
         setDeletingTransaction(true);
 
         const deletedTransaction =
           transactionToDelete;
 
-        const response = await fetch(
-          `${API_BASE_URL}/api/gmail/transactions/${deletedTransaction.id}`,
+        const response = await accountFetch(`/api/gmail/transactions/${deletedTransaction.id}`,
           {
             method: "DELETE",
           }
@@ -639,6 +647,7 @@ function App() {
     }
 
     try {
+      throw new Error("Gmail transaction editing is disabled until account isolation is complete.");
       const transaction =
         undoTransaction;
 
@@ -650,8 +659,7 @@ function App() {
         undoTimerRef.current = null;
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/gmail/transactions/${transaction.id}/restore`,
+      const response = await accountFetch(`/api/gmail/transactions/${transaction.id}/restore`,
         {
           method: "POST",
         }
