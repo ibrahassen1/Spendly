@@ -1326,11 +1326,11 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 .finance-category strong,
 .finance-panel .finance-category-top strong {
   font-family:"Fredoka",system-ui,sans-serif !important;
-  font-weight:300 !important;
-  letter-spacing:-.02em !important;
+  font-weight:500 !important;
+  letter-spacing:-.015em !important;
   font-size:1.05rem;
 }
 .finance-category-controls input[type="number"] {
   font-family:"Fredoka",system-ui,sans-serif !important;
-  font-weight:300 !important;
+  font-weight:500 !important;
 }
