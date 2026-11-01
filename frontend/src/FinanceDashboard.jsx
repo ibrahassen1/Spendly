@@ -175,12 +175,6 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       setSavingLive(false);
     }
   };
-  const exportData = () => {
-    const blob = new Blob([JSON.stringify(planner, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a"); link.href = url; link.download = "spendly-budget-backup.json"; link.click();
-    URL.revokeObjectURL(url);
-  };
   const customCategories = useMemo(() => categories.filter((c) => !["spend", "expenses", "investments", "savings"].includes(c.id)), [categories]);
   return (
     <section className="finance-page">
@@ -190,27 +184,20 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         <p>Plan your paycheck and see where every dollar is going.</p>
       </div>
       <div className="finance-toolbar">
-        <label>Pay period
-          <select value={period.id} onChange={(e) => setPlanner((p) => ({ ...p, selected: e.target.value }))}>
-            {planner.periods.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </label>
-        <button type="button" className="finance-add" onClick={() => {
+        <label>Paycheck date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
+        <label>Paycheck amount ($) <input type="number" min="0" step="0.01" placeholder="Enter take-home pay" value={period.paycheck} disabled={Boolean(period.submitted)} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
+        {period.submitted && <button type="button" className="finance-add" onClick={() => {
           const id = makeId();
           setPlanner((p) => ({ ...p, selected: id, periods: [...p.periods, { id, name: "Paycheck " + (p.periods.length + 1), paycheck: "", entries: [] }] }));
-        }}>+ New period</button>
-        <button type="button" className="finance-add" onClick={exportData}>Export backup</button>
-      </div>
-      <div className="finance-toolbar">
-        <label>Period name <input value={period.name} onChange={(e) => updatePeriod({ name: e.target.value })} /></label>
-        <label>Paycheck amount ($) — enter your take-home pay here <input type="number" min="0" step="0.01" placeholder="Enter paycheck" value={period.paycheck} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
+          setPeriodStart(new Date().toLocaleDateString("en-CA"));
+          setSyncMessage("");
+        }}>+ Next paycheck</button>}
       </div>
       <div className="finance-live-sync">
         <div>
           <span className="finance-kicker">SHARED LIVE BUDGET</span>
           <h3>Submit paycheck</h3>
           <p>One submission updates your goal progress and adds {dollars(categoryAmount("spend"))} to your live Safe to Spend allocation. An existing live budget is required. Goal progress is currently stored in this browser until secure multi-user database support is ready.</p>
-          <label>Budget start date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
         </div>
         <button type="button" className="finance-add" disabled={savingLive || period.submitted || !valid || paycheck <= 0} onClick={saveLiveBudget}>{savingLive ? "Submitting…" : period.submitted ? "Paycheck submitted ✓" : "Submit Paycheck"}</button>
         {syncMessage && <p role="status">{syncMessage}</p>}
