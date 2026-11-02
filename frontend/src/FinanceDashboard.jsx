@@ -141,7 +141,12 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         if (cancelled) return;
         if (remote && (!Array.isArray(remote.periods) || !Array.isArray(remote.categories) || !remote.goals)) throw new Error("Invalid planner data");
         setCloudHasData(Boolean(remote));
-        setPlanner(remote || { monthlyRecurring: 0, goals: DEFAULT_GOALS, categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null });
+        const ledgerResponse = await fetch(stagingApi + "/api/account/paychecks", { headers: { Authorization: "Bearer " + token } });
+        if (!ledgerResponse.ok) throw new Error("Unable to verify paycheck history");
+        const ledger = await ledgerResponse.json();
+        const credited = new Set(ledger.map(row => row.periodId));
+        const base = remote || { monthlyRecurring: 0, goals: DEFAULT_GOALS, categories: INITIAL, periods: [{ id: makeId(), name: "Current paycheck", paycheck: "", entries: [] }], selected: null };
+        setPlanner({...base, periods: base.periods.map(p => ({...p, submitted: credited.has(p.id)}))});
         setCloudStatus(remote ? "Planner loaded from your account." : "No cloud planner yet. Import your browser history below if needed.");
         skipInitialSave.current = true;
         setCloudReady(true);
@@ -434,7 +439,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <span className="finance-kicker">PROJECTED SAFE TO SPEND · THIS PAYCHECK</span>
         <strong>{valid ? dollars(safeBalance) : "Allocation incomplete"}</strong>
         <p>{dollars(categoryAmount("spend"))} spending allocation for this paycheck.</p>
-        <p>Staging Safe to Spend: {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not initialized"}. Secure paycheck credits and Gmail syncing are not yet enabled.</p>
+        <p>Safe to Spend: {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not initialized"}. Gmail purchases are managed under Safe to Spend.</p>
       </article>
       <p className="finance-local-note">Planner history syncs to your staging account. Paycheck crediting and Gmail syncing are paused while account isolation is finalized.</p>
         </>
