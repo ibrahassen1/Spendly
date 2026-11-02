@@ -109,7 +109,7 @@ export default function AuthenticatedDashboard({ getToken }) {
             <input required type="date" max={today()} value={paycheckDate} onChange={e=>setPaycheckDate(e.target.value)} style={{display:"block",width:"100%",padding:12,marginTop:6}} />
           </label>
           <button type="submit" className="finance-add" disabled={busy} onClick={() => setStatus("Save button clicked. Validating paycheck…")}>{busy?"Saving…":"Save paycheck"}</button>
-          {status && <p role="status" style={{margin:0}}>{status}</p>
+          {status && <p role="status" style={{margin:0}}>{status}</p>}
         </form>
       </section>
       <section className="finance-panel" style={{marginTop:20}}>
