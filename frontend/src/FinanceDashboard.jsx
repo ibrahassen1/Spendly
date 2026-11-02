@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import SpendlyCoach from "./SpendlyCoach.jsx";
 
 const STORAGE_KEY = "spendly.finance-planner.v1";
+const GOAL_IDS = ["expenses", "investments", "savings"];
+const DEFAULT_GOALS = Object.fromEntries(GOAL_IDS.map(id => [id, { target: "", allocatedCents: 0 }]));
 const COLORS = ["#3ad5aa", "#d5b46d", "#699cf0", "#c68ee8", "#e68f7c", "#6fd0d9", "#b7bd73"];
 const INITIAL = [
   { id: "spend", name: "Safe to Spend", percent: 40 },
@@ -118,12 +120,13 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
   );
 }
 
-export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
+export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "dashboard" }) {
   const [planner, setPlanner] = useState(loadPlanner);
   
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(planner)); }, [planner]);
   const [savingLive, setSavingLive] = useState(false);
   const [savingPace, setSavingPace] = useState("moderate");
+  const [goalLedgerView, setGoalLedgerView] = useState(null);
   const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const [periodStart, setPeriodStart] = useState(() => new Date().toLocaleDateString("en-CA"));
@@ -199,6 +202,23 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
     });
     setRecommendationDismissed(true);
   };
+  const recordGoalAllocations = () => {
+    if (!valid || paycheck <= 0) return;
+    if (period.goalRecorded) { setSyncMessage("This paycheck has already been recorded toward your goals."); return; }
+    if (!window.confirm("Record this paycheck's savings, investment, and expense allocations toward your Goals? This is planner tracking only; no money is transferred.")) return;
+    const amounts = Object.fromEntries(GOAL_IDS.map(id => [id, Math.round(categoryAmount(id) * 100)]));
+    setPlanner(previous => ({
+      ...previous,
+      periods: previous.periods.map(p => p.id === period.id ? {
+        ...p, goalRecorded: true, goalRecordedAt: new Date().toISOString(), goalAllocations: amounts
+      } : p),
+      goals: Object.fromEntries(GOAL_IDS.map(id => [id, {
+        ...(previous.goals?.[id] || DEFAULT_GOALS[id]),
+        allocatedCents: (previous.goals?.[id]?.allocatedCents || 0) + amounts[id]
+      }]).concat(Object.entries(previous.goals || {}).filter(([id]) => !GOAL_IDS.includes(id))))
+    }));
+    setSyncMessage("Paycheck allocations recorded toward Goals. No live balance was changed.");
+  };
   const exportData = () => {
     const blob = new Blob([JSON.stringify(planner, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -209,10 +229,11 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
   return (
     <section className="finance-page">
       <div className="finance-heading">
-        <p className="eyebrow">YOUR FINANCIAL OVERVIEW</p>
-        <h2>Dashboard</h2>
-        <p>Plan your paycheck and see where every dollar is going.</p>
+        <p className="eyebrow">{view === "goals" ? "YOUR PROGRESS" : "YOUR FINANCIAL OVERVIEW"}</p>
+        <h2>{view === "goals" ? "Financial Goals" : "Dashboard"}</h2>
+        <p>{view === "goals" ? "Keep your savings, investment, and expense targets in one place." : "Plan your paycheck and see where every dollar is going."}</p>
       </div>
+      {view === "dashboard" && <>
       <SpendlyCoach
         goals={{ ...planner.goals, timelineMonths: planner.goalTimelineMonths }}
         onSave={({ savings, investments, months }) => {
@@ -310,6 +331,14 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
           {customCategories.map((c) => <label className="finance-custom-name" key={c.id}>Rename {c.name}<input value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></label>)}
         </article>
       </div>
+      <div className="finance-panel" style={{ marginBottom: 20 }}>
+        <span className="finance-kicker">GOAL ALLOCATION TRACKING</span>
+        <h3>Record this paycheck toward Goals</h3>
+        <p>Record your planned savings, investment, and expense allocations once per paycheck. This does not transfer funds or modify your live budget.</p>
+        <button type="button" className="finance-add" disabled={Boolean(period.goalRecorded) || !valid || paycheck <= 0} onClick={recordGoalAllocations}>
+          {period.goalRecorded ? "Allocations recorded" : "Record allocations toward Goals"}
+        </button>
+      </div>
       <div className="finance-tables">
         {["expenses", "investments", "savings"].map((id) => (
           <FinanceTable key={id} title={categories.find((c) => c.id === id)?.name || id} allocated={categoryAmount(id)} entries={entriesOf(id)} onAdd={() => addEntry(id)} onChange={changeEntry} onRemove={removeEntry} />
@@ -335,6 +364,51 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         <p>{dollars(categoryAmount("spend"))} spending allocation − {dollars(spent)} manually recorded discretionary purchases.</p>
         <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Update live Safe to Spend” above to sync your allocation.</p>
       </article>
+      </>}
+      {view === "goals" && <article className="finance-panel" style={{ marginBottom: 20 }}>
+        <span className="finance-kicker">FINANCIAL GOALS</span>
+        <h3>{goalLedgerView ? "Allocation history" : "Track your progress"}</h3>
+        <div className="finance-toolbar" style={{ margin: "12px 0" }}>
+          <button type="button" className="finance-add" onClick={() => setGoalLedgerView(null)}>Progress</button>
+          {GOAL_IDS.map(id => <button type="button" key={id} className="finance-add" onClick={() => setGoalLedgerView(id)}>{categories.find(c => c.id === id)?.name || id} ledger</button>)}
+        </div>
+        {goalLedgerView ? <>
+          <p>Paychecks you explicitly recorded toward {goalLedgerView}. This history is stored in this browser.</p>
+          <div style={{ overflowX: "auto" }}><table style={{ width: "100%", textAlign: "left" }}>
+            <thead><tr><th>Paycheck</th><th>Recorded</th><th>Allocated</th></tr></thead>
+            <tbody>{planner.periods.filter(p => p.goalRecorded).map(p => <tr key={p.id}>
+              <td>{p.name}</td><td>{p.goalRecordedAt ? new Date(p.goalRecordedAt).toLocaleDateString() : "Recorded"}</td>
+              <td>{dollars((p.goalAllocations?.[goalLedgerView] || 0) / 100)}</td>
+            </tr>)}</tbody>
+          </table></div>
+          {!planner.periods.some(p => p.goalRecorded) && <p>No allocations recorded yet.</p>}
+        </> : <>
+          <p>Progress reflects paycheck allocations you record, not verified bank transfers or investments. Goals do not change your live Safe-to-Spend balance.</p>
+          {GOAL_IDS.map(id => {
+            const goal = planner.goals?.[id] || DEFAULT_GOALS[id];
+            const target = cleanAmount(goal.target);
+            const allocated = (goal.allocatedCents || 0) / 100;
+            const progress = target > 0 ? Math.min(100, allocated / target * 100) : 0;
+            const label = categories.find(c => c.id === id)?.name || id;
+            return <div key={id} style={{ marginTop: 22 }}>
+              <div className="finance-category-top"><strong>{label}</strong><span>{target > 0 ? progress.toFixed(0) + "%" : "Set a goal"}</span></div>
+              <div role="progressbar" aria-label={label + " goal progress"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}
+                style={{ height: 12, background: "#273541", borderRadius: 12, overflow: "hidden", margin: "10px 0" }}>
+                <div style={{ height: "100%", width: progress + "%", background: id === "expenses" ? "#d5b46d" : id === "investments" ? "#699cf0" : "#3ad5aa" }} />
+              </div>
+              <p>{dollars(allocated)} allocated of {target > 0 ? dollars(target) : "no target yet"}</p>
+              <div className="finance-toolbar">
+                <label>{label} goal ($) <input type="number" min="0" step="0.01" value={goal.target} placeholder="Enter goal"
+                  onChange={e => setPlanner(p => ({ ...p, goals: { ...p.goals, [id]: { ...(p.goals?.[id] || DEFAULT_GOALS[id]), target: e.target.value } } }))} /></label>
+                <button type="button" className="finance-add" onClick={() => {
+                  if (!window.confirm("Reset " + label + " progress? This does not change live balances or delete allocation history.")) return;
+                  setPlanner(p => ({ ...p, goals: { ...p.goals, [id]: { ...(p.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents: 0 } } }));
+                }}>Reset progress</button>
+              </div>
+            </div>;
+          })}
+        </>}
+      </article>}
       <p className="finance-local-note">Planner categories, entries, and pay periods are stored in this browser only. The live budget changes only when you click Update live Safe to Spend. Manually entered purchases are not synced to Gmail transactions.</p>
     </section>
   );
