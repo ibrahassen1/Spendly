@@ -22,10 +22,10 @@ public class AccountPlannerController {
     public AccountPlannerController(JdbcTemplate db, ObjectMapper json) { this.db=db; this.json=json; }
 
     @GetMapping("/planner")
-    public JsonNode planner(@AuthenticationPrincipal Jwt jwt) throws Exception {
+    public org.springframework.http.ResponseEntity<JsonNode> planner(@AuthenticationPrincipal Jwt jwt) throws Exception {
         String raw=db.query("SELECT planner_json FROM account_planners WHERE user_id=?",
             (rs,i)->rs.getString(1),jwt.getSubject()).stream().findFirst().orElse(null);
-        return raw==null ? null : json.readTree(raw);
+        return raw==null ? org.springframework.http.ResponseEntity.noContent().build() : org.springframework.http.ResponseEntity.ok(json.readTree(raw));
     }
 
     @PutMapping("/planner")
