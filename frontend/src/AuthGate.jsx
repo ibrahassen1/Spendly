@@ -1,9 +1,11 @@
 import { SignIn, UserButton, useAuth } from "@clerk/react";
 import { useState } from "react";
+import AuthenticatedDashboard from "./AuthenticatedDashboard.jsx";
 
 export default function AuthGate() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [status, setStatus] = useState("");
+  const [backendReady, setBackendReady] = useState(false);
   const checkStaging = async () => {
     setStatus("Checking secure staging backend…");
     try {
@@ -12,7 +14,8 @@ export default function AuthGate() {
       const response = await fetch("https://spendly-staging-staging.up.railway.app/api/planner", {
         headers: { Authorization: "Bearer " + token }
       });
-      setStatus(response.ok ? "Authenticated staging connection successful." : "Staging returned HTTP " + response.status);
+      if (response.ok) { setBackendReady(true); setStatus(""); }
+      else setStatus("Staging returned HTTP " + response.status);
     } catch (error) {
       setStatus("Connection failed: " + error.message);
     }
@@ -24,6 +27,7 @@ export default function AuthGate() {
       <SignIn routing="hash" fallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />
     </section>
   </main>;
+  if (backendReady) return <AuthenticatedDashboard getToken={getToken} />;
   return <main style={{minHeight:"100vh",padding:32,maxWidth:760,margin:"auto"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
       <h1>Spendly</h1><UserButton />
