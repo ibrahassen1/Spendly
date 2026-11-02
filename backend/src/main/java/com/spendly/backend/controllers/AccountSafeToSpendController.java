@@ -61,7 +61,7 @@ public class AccountSafeToSpendController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid paycheck");
 
         // Serialize concurrent credits per authenticated account, including initial insert.
-        jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtext(?))",Long.class,id);
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> null, id);
         var prior=jdbc.query(
             "SELECT paycheck,safe_credit,paycheck_date FROM user_paycheck_credits WHERE user_id=? AND period_id=?",
             (rs,n)->new Object[]{rs.getBigDecimal(1),rs.getBigDecimal(2),rs.getDate(3).toLocalDate()},
