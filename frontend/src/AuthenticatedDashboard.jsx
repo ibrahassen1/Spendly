@@ -13,6 +13,8 @@ export default function AuthenticatedDashboard({ getToken }) {
   const [page, setPage] = useState("dashboard");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [goalSaving, setGoalSaving] = useState(false);
+  const [goalTargets, setGoalTargets] = useState({});
   const [paycheck, setPaycheck] = useState("");
   const [safeCredit, setSafeCredit] = useState("");
   const [paycheckDate, setPaycheckDate] = useState(today());
@@ -73,6 +75,35 @@ export default function AuthenticatedDashboard({ getToken }) {
     finally { setBusy(false); }
   };
 
+  const saveGoal = async id => {
+    const raw = goalTargets[id];
+    const target = Number(raw);
+    if (raw === undefined || raw === "" || !/^\\d+(\\.\\d{1,2})?$/.test(String(raw)) || !Number.isFinite(target) || target > 9999999999) {
+      setStatus("Enter a valid goal target (0 or greater).");
+      return;
+    }
+    setGoalSaving(true);
+    setStatus("");
+    try {
+      const base = planner && typeof planner === "object" ? planner : { periods: [], categories: [], goals: {} };
+      const updated = {
+        ...base,
+        goals: {
+          ...(base.goals || {}),
+          [id]: { ...(base.goals?.[id] || {}), target }
+        }
+      };
+      await request("/api/planner", { method: "PUT", body: JSON.stringify(updated) });
+      setPlanner(updated);
+      setGoalTargets(previous => { const next = {...previous}; delete next[id]; return next; });
+      setStatus("Goal target saved.");
+    } catch (error) {
+      setStatus(error.message);
+    } finally {
+      setGoalSaving(false);
+    }
+  };
+
   const categories = Array.isArray(planner?.categories) ? planner.categories : [];
   const periods = Array.isArray(planner?.periods) ? planner.periods : [];
   const period = periods.find(p=>p.id===planner?.selected) || periods[periods.length-1];
@@ -128,10 +159,16 @@ export default function AuthenticatedDashboard({ getToken }) {
           return <div key={id} style={{marginBottom:24}}>
             <h3>{id[0].toUpperCase()+id.slice(1)}</h3>
             <p>{money(saved)} allocated of {money(target)} goal</p>
+            <div style={{display:"flex",gap:10,alignItems:"end",flexWrap:"wrap",margin:"12px 0"}}>
+              <label>Target amount
+                <input type="number" min="0" step="0.01" value={goalTargets[id] ?? String(target)} onChange={e=>setGoalTargets(prev=>({...prev,[id]:e.target.value}))} style={{display:"block",padding:10,marginTop:6,maxWidth:180}} />
+              </label>
+              <button type="button" className="finance-add" disabled={goalSaving} onClick={()=>saveGoal(id)}>{goalSaving?"Saving…":"Save target"}</button>
+            </div>
             <progress value={target>0?Math.min(100,saved/target*100):0} max="100" style={{width:"100%"}} />
           </div>;
         })}
-        <p>Goals are read-only planner records. No bank transfers are performed.</p>
+        <p>Goal targets are saved to your account. Allocated progress is still read-only; no bank transfers are performed.</p>
       </section>
     </>}
     {page==="safe" && <>
