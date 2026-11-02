@@ -55,8 +55,9 @@ export default function AccountDashboard({getToken}) {
   return <main className="app" style={{minHeight:'100vh',paddingBottom:110}}>
     <div className="dashboard" style={{maxWidth:880,width:'100%'}}>
       <header className="app-header"><div><p className="eyebrow">SPENDLY</p><h1>Your money, in focus.</h1></div><span className="status-dot"/></header>
-      {activePage==='dashboard' && <FinanceDashboard view="dashboard" safeToSpend={balance} onBudgetSaved={refresh}/>}
-      {activePage==='goals' && <FinanceDashboard view="goals" safeToSpend={balance}/>}
+      <div style={{display:activePage==='spend'?'none':'block'}}>
+        <FinanceDashboard view={activePage==='goals'?'goals':'dashboard'} safeToSpend={balance} onBudgetSaved={refresh}/>
+      </div>
       {activePage==='spend' && <>
         {balance ? <section className="safe-card">
           <div className="safe-top"><p className="label">SAFE TO SPEND</p><span className="period">Since {balance.startDate}</span></div>
