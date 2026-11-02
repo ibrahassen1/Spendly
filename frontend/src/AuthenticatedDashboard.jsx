@@ -98,7 +98,7 @@ export default function AuthenticatedDashboard({ getToken }) {
       </section>
       <section className="finance-panel" style={{marginTop:20}}>
         <span className="finance-kicker">ADD PAYCHECK</span>
-        <form onSubmit={submitPaycheck} style={{display:"grid",gap:14,maxWidth:420,marginTop:12}}>
+        <form noValidate onSubmit={submitPaycheck} style={{display:"grid",gap:14,maxWidth:420,marginTop:12}}>
           <label>Paycheck amount
             <input required type="number" min="0.01" step="0.01" value={paycheck} onChange={e=>setPaycheck(e.target.value)} placeholder="100.00" style={{display:"block",width:"100%",padding:12,marginTop:6}} />
           </label>
@@ -108,7 +108,8 @@ export default function AuthenticatedDashboard({ getToken }) {
           <label>Paycheck date
             <input required type="date" max={today()} value={paycheckDate} onChange={e=>setPaycheckDate(e.target.value)} style={{display:"block",width:"100%",padding:12,marginTop:6}} />
           </label>
-          <button type="submit" className="finance-add" disabled={busy}>{busy?"Saving…":"Save paycheck"}</button>
+          <button type="submit" className="finance-add" disabled={busy} onClick={() => setStatus("Save button clicked. Validating paycheck…")}>{busy?"Saving…":"Save paycheck"}</button>
+          {status && <p role="status" style={{margin:0}}>{status}</p>
         </form>
       </section>
       <section className="finance-panel" style={{marginTop:20}}>
