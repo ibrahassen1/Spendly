@@ -29,7 +29,8 @@ public class ApiSecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/planner", "/api/account/safe-to-spend", "/api/account/safe-to-spend/paychecks").authenticated()
+                .requestMatchers("/api/account/gmail/callback").permitAll()
+                .requestMatchers("/api/planner", "/api/account/safe-to-spend", "/api/account/safe-to-spend/paychecks", "/api/account/gmail/connect", "/api/account/gmail/status", "/api/account/gmail/connection").authenticated()
                 .requestMatchers("/api/**").denyAll()
                 .anyRequest().permitAll())
             .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
