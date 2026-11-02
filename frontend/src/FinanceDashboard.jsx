@@ -129,6 +129,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
   const [goalLedgerView, setGoalLedgerView] = useState(null);
   const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [showSplit, setShowSplit] = useState(false);
   const [periodStart, setPeriodStart] = useState(() => new Date().toLocaleDateString("en-CA"));
   const period = planner.periods.find((p) => p.id === planner.selected) || planner.periods[0];
   const paycheck = cleanAmount(period?.paycheck);
@@ -151,8 +152,9 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       return;
     }
     const allocation = Math.round(categoryAmount("spend") * 100) / 100;
+    if (period.submitted) return;
     const confirmed = window.confirm(
-      "Update your LIVE Safe to Spend allocation to " + dollars(allocation) +
+      "Confirm paycheck? This REPLACES your existing live Safe to Spend allocation with " + dollars(allocation) +
       " starting " + periodStart + "? Existing Gmail purchases since that date will be counted by the backend. This replaces your current live budget allocation."
     );
     if (!confirmed) return;
@@ -167,7 +169,13 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
       if (!response.ok) throw new Error("The backend could not save the budget.");
       const updated = await response.json();
       if (onBudgetSaved) await onBudgetSaved(updated);
-      setSyncMessage("Live budget updated. Both tabs now use the same backend balance.");
+      const amounts = Object.fromEntries(GOAL_IDS.map(id => [id, Math.round(categoryAmount(id)*100)]));
+      setPlanner(previous => ({
+        ...previous,
+        periods: previous.periods.map(p => p.id === period.id ? {...p, submitted:true, submittedAt:new Date().toISOString(), paycheckDate:periodStart, goalRecorded:true, goalRecordedAt:new Date().toISOString(), goalAllocations:amounts} : p),
+        goals: {...previous.goals, ...Object.fromEntries(GOAL_IDS.map(id => [id, {...(previous.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents:(previous.goals?.[id]?.allocatedCents || 0)+amounts[id]}]))}
+      }));
+      setSyncMessage("Paycheck confirmed and Goals progress updated.");
     } catch (error) {
       setSyncMessage(error.message || "Unable to update live budget.");
     } finally {
@@ -202,29 +210,6 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
     });
     setRecommendationDismissed(true);
   };
-  const recordGoalAllocations = () => {
-    if (!valid || paycheck <= 0) return;
-    if (period.goalRecorded) { setSyncMessage("This paycheck has already been recorded toward your goals."); return; }
-    if (!window.confirm("Record this paycheck's savings, investment, and expense allocations toward your Goals? This is planner tracking only; no money is transferred.")) return;
-    const amounts = Object.fromEntries(GOAL_IDS.map(id => [id, Math.round(categoryAmount(id) * 100)]));
-    setPlanner(previous => ({
-      ...previous,
-      periods: previous.periods.map(p => p.id === period.id ? {
-        ...p, goalRecorded: true, goalRecordedAt: new Date().toISOString(), goalAllocations: amounts
-      } : p),
-      goals: Object.fromEntries(GOAL_IDS.map(id => [id, {
-        ...(previous.goals?.[id] || DEFAULT_GOALS[id]),
-        allocatedCents: (previous.goals?.[id]?.allocatedCents || 0) + amounts[id]
-      }]).concat(Object.entries(previous.goals || {}).filter(([id]) => !GOAL_IDS.includes(id))))
-    }));
-    setSyncMessage("Paycheck allocations recorded toward Goals. No live balance was changed.");
-  };
-  const exportData = () => {
-    const blob = new Blob([JSON.stringify(planner, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a"); link.href = url; link.download = "spendly-budget-backup.json"; link.click();
-    URL.revokeObjectURL(url);
-  };
   const customCategories = useMemo(() => categories.filter((c) => !["spend", "expenses", "investments", "savings"].includes(c.id)), [categories]);
   return (
     <section className="finance-page">
@@ -249,58 +234,63 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           setRecommendationDismissed(false);
         }}
       />
-      <div className="finance-toolbar">
+      <section className="finance-panel" style={{marginBottom:20}}>
+        <span className="finance-kicker">NEW PAYCHECK</span>
+        <h3>{period.submitted ? "Paycheck confirmed" : "Add your paycheck"}</h3>
+        {period.submitted ? <>
+          <p>{dollars(paycheck)} · {period.paycheckDate || periodStart}</p>
+          <button type="button" className="coach-primary" onClick={() => {
+            const id=makeId();
+            setPlanner(p=>({...p,selected:id,periods:[...p.periods,{id,name:"Paycheck "+(p.periods.length+1),paycheck:"",entries:[]}]}));
+            setShowSplit(false); setRecommendationDismissed(false); setSyncMessage("");
+            setPeriodStart(new Date().toLocaleDateString("en-CA"));
+          }}>+ Add another paycheck</button>
+        </> : <>
+          <div className="finance-toolbar">
+            <label>Take-home paycheck ($)
+              <input type="number" min="0.01" step="0.01" value={period.paycheck} placeholder="Enter paycheck"
+                onChange={e=>{updatePeriod({paycheck:e.target.value});setShowSplit(false);}} />
+            </label>
+            <label>Date received
+              <input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)} />
+            </label>
+          </div>
+          {!showSplit && <button type="button" className="coach-primary" disabled={paycheck<=0 || !periodStart}
+            onClick={()=>setShowSplit(true)}>Continue to recommended split</button>}
+        </>}
+        {syncMessage && <p role="status">{syncMessage}</p>}
+      </section>
+      {showSplit && !period.submitted && <section className="finance-panel" style={{marginBottom:20}}>
+        <span className="finance-kicker">RECOMMENDED SPLIT</span>
+        <h3>Here's how to divide {dollars(paycheck)}</h3>
         <label>Pay schedule
-          <select value={planner.payFrequency || "biweekly"} onChange={e => setPlanner(previous => ({ ...previous, payFrequency: e.target.value }))}>
+          <select value={planner.payFrequency || "biweekly"} onChange={e=>setPlanner(p=>({...p,payFrequency:e.target.value}))}>
             <option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option>
             <option value="semimonthly">Twice a month</option><option value="monthly">Monthly</option>
           </select>
         </label>
-      </div>
-      {paycheck > 0 && !recommendationDismissed && <section className="finance-panel" style={{ marginBottom: 20 }}>
-        <span className="finance-kicker">RECOMMENDED SPLIT</span>
-        <h3>Here's a split based on your goals</h3>
-        <p>Choose a savings pace. This is a suggestion and will not change your live Safe to Spend balance.</p>
+        <p>How fast do you want to reach your goals?</p>
         <div className="finance-toolbar">
-          {["slow","moderate","aggressive"].map(pace => <button type="button" className="finance-add" key={pace}
-            aria-pressed={savingPace===pace} onClick={() => setSavingPace(pace)}
-            style={{opacity:savingPace===pace?1:.6}}>{pace[0].toUpperCase()+pace.slice(1)}</button>)}
+          {["slow","moderate","aggressive"].map(pace=><button type="button" className="finance-add" key={pace}
+            aria-pressed={savingPace===pace} onClick={()=>setSavingPace(pace)}>{pace}</button>)}
         </div>
-        {!recommendation ? <p>Your recurring bills exceed this paycheck. Review your expenses to see a workable split.</p> : <>
-          {["spend","expenses","savings","investments"].filter(id=>recommendation[id]>0 || id==="spend").map(id=><p key={id}>
+        {recommendation ? <>
+          {["spend","expenses","savings","investments"].filter(id=>recommendation[id]>0||id==="spend").map(id=><p key={id}>
             {({spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"})[id]}:
             <strong> {recommendation[id]}% · {dollars(paycheck*recommendation[id]/100)}</strong>
           </p>)}
-          {!recommendation.feasible && <p className="finance-warning">Your goals may take longer than the selected timeline.</p>}
-          <button type="button" className="finance-add" onClick={applyRecommendation}>Apply to planner only</button>
-        </>}
+          {!recommendation.feasible && <p className="finance-warning">Your goals may need a longer timeline.</p>}
+          <button type="button" className="finance-add" onClick={applyRecommendation}>Apply recommended split</button>
+        </> : <p>Recurring expenses exceed this paycheck.</p>}
       </section>}
-      <div className="finance-toolbar">
-        <label>Pay period
-          <select value={period.id} onChange={(e) => setPlanner((p) => ({ ...p, selected: e.target.value }))}>
-            {planner.periods.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </label>
-        <button type="button" className="finance-add" onClick={() => {
-          const id = makeId();
-          setPlanner((p) => ({ ...p, selected: id, periods: [...p.periods, { id, name: "Paycheck " + (p.periods.length + 1), paycheck: "", entries: [] }] }));
-        }}>+ New period</button>
-        <button type="button" className="finance-add" onClick={exportData}>Export backup</button>
-      </div>
-      <div className="finance-toolbar">
-        <label>Period name <input value={period.name} onChange={(e) => updatePeriod({ name: e.target.value })} /></label>
-        <label>Paycheck amount ($) — enter your take-home pay here <input type="number" min="0" step="0.01" placeholder="Enter paycheck" value={period.paycheck} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
-      </div>
-      <div className="finance-live-sync">
-        <div>
-          <span className="finance-kicker">SHARED LIVE BUDGET</span>
-          <h3>Sync this paycheck to Safe to Spend</h3>
-          <p>Sets the live spending allocation to {dollars(categoryAmount("spend"))}. Gmail transactions since the selected date are subtracted by your existing backend. The other categories remain in the Dashboard planner.</p>
-          <label>Budget start date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
-        </div>
-        <button type="button" className="finance-add" disabled={savingLive || !valid || paycheck <= 0} onClick={saveLiveBudget}>{savingLive ? "Updating…" : "Update live Safe to Spend"}</button>
-        {syncMessage && <p role="status">{syncMessage}</p>}
-      </div>
+      {showSplit && !period.submitted && <section className="finance-panel" style={{marginBottom:20}}>
+        <h3>Confirm paycheck</h3>
+        <p>Review and adjust your allocations below first.</p>
+        <p className="finance-warning">The current backend REPLACES your live Safe to Spend allocation; it does not add this paycheck to your existing balance.</p>
+        <button type="button" className="coach-primary" disabled={savingLive||!valid||paycheck<=0}
+          onClick={saveLiveBudget}>{savingLive ? "Confirming…" : "Confirm paycheck"}</button>
+      </section>}
+      {(showSplit || period.submitted) && <>
       <div className="finance-panels">
         <article className="finance-panel">
           <span className="finance-kicker">PAYCHECK ALLOCATION</span>
@@ -331,14 +321,6 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
           {customCategories.map((c) => <label className="finance-custom-name" key={c.id}>Rename {c.name}<input value={c.name} onChange={(e) => updateCategories(categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x))} /></label>)}
         </article>
       </div>
-      <div className="finance-panel" style={{ marginBottom: 20 }}>
-        <span className="finance-kicker">GOAL ALLOCATION TRACKING</span>
-        <h3>Record this paycheck toward Goals</h3>
-        <p>Record your planned savings, investment, and expense allocations once per paycheck. This does not transfer funds or modify your live budget.</p>
-        <button type="button" className="finance-add" disabled={Boolean(period.goalRecorded) || !valid || paycheck <= 0} onClick={recordGoalAllocations}>
-          {period.goalRecorded ? "Allocations recorded" : "Record allocations toward Goals"}
-        </button>
-      </div>
       <div className="finance-tables">
         {["expenses", "investments", "savings"].map((id) => (
           <FinanceTable key={id} title={categories.find((c) => c.id === id)?.name || id} allocated={categoryAmount(id)} entries={entriesOf(id)} onAdd={() => addEntry(id)} onChange={changeEntry} onRemove={removeEntry} />
@@ -364,6 +346,7 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "d
         <p>{dollars(categoryAmount("spend"))} spending allocation − {dollars(spent)} manually recorded discretionary purchases.</p>
         <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Update live Safe to Spend” above to sync your allocation.</p>
       </article>
+      </>}
       </>}
       {view === "goals" && <article className="finance-panel" style={{ marginBottom: 20 }}>
         <span className="finance-kicker">FINANCIAL GOALS</span>
