@@ -1,7 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.jsx'
+import { ClerkProvider } from '@clerk/react'
+import AuthGate from './AuthGate.jsx'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -16,10 +17,16 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-createRoot(
+const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!clerkKey) {
+  document.getElementById('root').textContent = 'Missing VITE_CLERK_PUBLISHABLE_KEY. Add your Clerk publishable key to frontend/.env.local.';
+} else createRoot(
   document.getElementById('root')
 ).render(
   <StrictMode>
-    <App />
+    <ClerkProvider publishableKey={clerkKey} afterSignOutUrl="/">
+      <AuthGate />
+    </ClerkProvider>
   </StrictMode>,
 )
