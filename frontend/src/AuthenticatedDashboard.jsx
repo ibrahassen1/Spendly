@@ -10,10 +10,6 @@ export default function AuthenticatedDashboard({ getToken }) {
   const [planner, setPlanner] = useState(null);
   const [balance, setBalance] = useState(null);
   const [history, setHistory] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [merchant, setMerchant] = useState("");
-  const [expenseAmount, setExpenseAmount] = useState("");
-  const [expenseDate, setExpenseDate] = useState(today());
   const [page, setPage] = useState("dashboard");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,16 +35,14 @@ export default function AuthenticatedDashboard({ getToken }) {
   }, [getToken]);
 
   const refresh = useCallback(async () => {
-    const [p,b,h,x] = await Promise.all([
+    const [p,b,h] = await Promise.all([
       request("/api/planner"),
       request("/api/account/safe-to-spend"),
-      request("/api/account/safe-to-spend/paychecks"),
-      request("/api/account/expenses")
+      request("/api/account/safe-to-spend/paychecks")
     ]);
     setPlanner(p);
     setBalance(b);
     setHistory(Array.isArray(h) ? h : []);
-    setExpenses(Array.isArray(x) ? x : []);
   }, [request]);
 
   useEffect(() => {
@@ -98,34 +92,6 @@ export default function AuthenticatedDashboard({ getToken }) {
       setPeriodId("pay-" + crypto.randomUUID());
       setStatus("Paycheck saved. Goal progress updated.");
     } catch(e) { setStatus(e.message + " If the paycheck was credited, retry with the same form to finish recording goal progress."); }
-    finally { setBusy(false); }
-  };
-
-  const addExpense = async e => {
-    e.preventDefault();
-    const amount = Number(expenseAmount);
-    if (!merchant.trim() || merchant.trim().length > 200 || !/^\d+(\.\d{1,2})?$/.test(expenseAmount.trim()) || amount <= 0 || !expenseDate || expenseDate > today()) {
-      setStatus("Enter a merchant, positive expense amount, and valid date.");
-      return;
-    }
-    setBusy(true); setStatus("");
-    try {
-      await request("/api/account/expenses", {method:"POST",body:JSON.stringify({merchant:merchant.trim(),amount,expenseDate})});
-      await refresh();
-      setMerchant(""); setExpenseAmount("");
-      setStatus("Expense recorded.");
-    } catch(e) { setStatus(e.message); }
-    finally { setBusy(false); }
-  };
-
-  const removeExpense = async id => {
-    if (!window.confirm("Remove this expense and restore the balance?")) return;
-    setBusy(true); setStatus("");
-    try {
-      await request("/api/account/expenses/" + id, {method:"DELETE"});
-      await refresh();
-      setStatus("Expense removed.");
-    } catch(e) { setStatus(e.message); }
     finally { setBusy(false); }
   };
 
@@ -239,22 +205,6 @@ export default function AuthenticatedDashboard({ getToken }) {
         <h3>{balance ? money(balance.allocation) : "No balance yet"}</h3>
         <p>Account-specific paycheck credits. Gmail transactions and spending deductions are not yet connected.</p>
         {balance && <p>Tracking since {balance.startDate}</p>}
-      </section>
-      <section className="finance-panel" style={{marginTop:20}}>
-        <span className="finance-kicker">RECORD AN EXPENSE</span>
-        <form noValidate onSubmit={addExpense} style={{display:"grid",gap:12,maxWidth:420,marginTop:12}}>
-          <label>Merchant <input required value={merchant} onChange={e=>setMerchant(e.target.value)} maxLength={200} style={{display:"block",width:"100%",padding:10}} /></label>
-          <label>Amount <input required type="number" min="0.01" step="0.01" value={expenseAmount} onChange={e=>setExpenseAmount(e.target.value)} style={{display:"block",width:"100%",padding:10}} /></label>
-          <label>Date <input required type="date" max={today()} value={expenseDate} onChange={e=>setExpenseDate(e.target.value)} style={{display:"block",width:"100%",padding:10}} /></label>
-          <button type="submit" className="finance-add" disabled={busy}>Record expense</button>
-        </form>
-      </section>
-      <section className="finance-panel" style={{marginTop:20}}>
-        <span className="finance-kicker">RECENT EXPENSES</span>
-        {expenses.length ? expenses.map(x=><div key={x.id} className="finance-category">
-          <div className="finance-category-top"><span>{x.merchant} · {x.expenseDate}</span><strong>{money(x.amount)}</strong></div>
-          <button type="button" disabled={busy} onClick={()=>removeExpense(x.id)}>Remove</button>
-        </div>) : <p>No expenses recorded yet.</p>}
       </section>
       {allocations.length>0 && <section className="finance-panel" style={{marginTop:20}}>
         <span className="finance-kicker">PLANNED ALLOCATIONS</span>
