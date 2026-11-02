@@ -78,7 +78,7 @@ export default function AuthenticatedDashboard({ getToken }) {
   const saveGoal = async id => {
     const raw = goalTargets[id];
     const target = Number(raw);
-    if (raw === undefined || raw === "" || !/^\\d+(\\.\\d{1,2})?$/.test(String(raw)) || !Number.isFinite(target) || target > 9999999999) {
+    if (raw === undefined || raw === "" || !/^\d+(\.\d{1,2})?$/.test(String(raw)) || !Number.isFinite(target) || target > 9999999999) {
       setStatus("Enter a valid goal target (0 or greater).");
       return;
     }
