@@ -29,7 +29,7 @@ public class ApiSecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/planner").authenticated()
+                .requestMatchers("/api/planner", "/api/account/safe-to-spend", "/api/account/safe-to-spend/paychecks").authenticated()
                 .requestMatchers("/api/**").denyAll()
                 .anyRequest().permitAll())
             .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
