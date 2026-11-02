@@ -17,6 +17,7 @@ export default function AuthenticatedDashboard({ getToken }) {
   const [goalTargets, setGoalTargets] = useState({});
   const [paycheck, setPaycheck] = useState("");
   const [safeCredit, setSafeCredit] = useState("");
+  const [useRecommended, setUseRecommended] = useState(true);
   const [paycheckDate, setPaycheckDate] = useState(today());
   const [periodId, setPeriodId] = useState(() => "pay-" + crypto.randomUUID());
 
@@ -55,9 +56,10 @@ export default function AuthenticatedDashboard({ getToken }) {
 
   const submitPaycheck = async e => {
     e.preventDefault();
-    const amount = Number(paycheck), credit = Number(safeCredit);
+    const amount = Number(paycheck);
+    const credit = useRecommended ? Math.round(amount * 70) / 100 : Number(safeCredit);
     if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(credit) || credit < 0 || credit > amount ||
-        !/^\d+(\.\d{1,2})?$/.test(paycheck.trim()) || !/^\d+(\.\d{1,2})?$/.test(safeCredit.trim()) ||
+        !/^\d+(\.\d{1,2})?$/.test(paycheck.trim()) || (!useRecommended && !/^\d+(\.\d{1,2})?$/.test(safeCredit.trim())) ||
         !paycheckDate || paycheckDate > today()) {
       setStatus("Check the paycheck amount, allocation, and date (cannot be in the future)."); return;
     }
@@ -67,11 +69,29 @@ export default function AuthenticatedDashboard({ getToken }) {
         method:"POST",
         body:JSON.stringify({periodId, paycheck:amount, safeCredit:credit, paycheckDate})
       });
+      // The paycheck credit is idempotent in the backend. Planner goal updates
+      // are tracked separately so a retry cannot double-count this paycheck.
+      const base = await request("/api/planner") || { periods: [], categories: [], goals: {} };
+      const recorded = base.goalCreditPeriods || {};
+      if (!recorded[periodId]) {
+        const savingsCents = useRecommended ? Math.round(amount * 20) : 0;
+        const investmentsCents = useRecommended ? Math.round(amount * 100) - Math.round(credit * 100) - savingsCents : 0;
+        const updated = {
+          ...base,
+          goalCreditPeriods: { ...recorded, [periodId]: true },
+          goals: {
+            ...(base.goals || {}),
+            savings: { ...(base.goals?.savings || {}), allocatedCents: (Number(base.goals?.savings?.allocatedCents) || 0) + savingsCents },
+            investments: { ...(base.goals?.investments || {}), allocatedCents: (Number(base.goals?.investments?.allocatedCents) || 0) + investmentsCents }
+          }
+        };
+        await request("/api/planner", { method:"PUT", body:JSON.stringify(updated) });
+      }
       await refresh();
       setPaycheck(""); setSafeCredit("");
       setPeriodId("pay-" + crypto.randomUUID());
-      setStatus("Paycheck saved to your account.");
-    } catch(e) { setStatus(e.message + " Please retry without changing the paycheck ID."); }
+      setStatus("Paycheck saved. Goal progress updated.");
+    } catch(e) { setStatus(e.message + " If the paycheck was credited, retry with the same form to finish recording goal progress."); }
     finally { setBusy(false); }
   };
 
@@ -133,9 +153,17 @@ export default function AuthenticatedDashboard({ getToken }) {
           <label>Paycheck amount
             <input required type="number" min="0.01" step="0.01" value={paycheck} onChange={e=>setPaycheck(e.target.value)} placeholder="100.00" style={{display:"block",width:"100%",padding:12,marginTop:6}} />
           </label>
-          <label>Safe-to-Spend portion
-            <input required type="number" min="0" step="0.01" value={safeCredit} onChange={e=>setSafeCredit(e.target.value)} placeholder="70.00" style={{display:"block",width:"100%",padding:12,marginTop:6}} />
+          <label style={{display:"flex",gap:8,alignItems:"center"}}>
+            <input type="checkbox" checked={useRecommended} onChange={e=>setUseRecommended(e.target.checked)} />
+            Use recommended split (70% spending, 20% savings, 10% investments)
           </label>
+          {useRecommended ? <div className="finance-category">
+            <p>Safe to Spend: {money(Math.round(Number(paycheck || 0) * 70) / 100)}</p>
+            <p>Savings: {money(Math.round(Number(paycheck || 0) * 20) / 100)}</p>
+            <p>Investments: {money((Math.round(Number(paycheck || 0) * 100) - Math.round(Number(paycheck || 0) * 70) - Math.round(Number(paycheck || 0) * 20)) / 100)}</p>
+          </div> : <label>Safe-to-Spend portion
+            <input required type="number" min="0" step="0.01" value={safeCredit} onChange={e=>setSafeCredit(e.target.value)} placeholder="70.00" style={{display:"block",width:"100%",padding:12,marginTop:6}} />
+          </label>}
           <label>Paycheck date
             <input required type="date" max={today()} value={paycheckDate} onChange={e=>setPaycheckDate(e.target.value)} style={{display:"block",width:"100%",padding:12,marginTop:6}} />
           </label>
