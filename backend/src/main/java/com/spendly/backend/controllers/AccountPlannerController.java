@@ -19,7 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AccountPlannerController {
     private final JdbcTemplate db;
     private final ObjectMapper json;
-    public AccountPlannerController(JdbcTemplate db, ObjectMapper json) { this.db=db; this.json=json; }
+    public AccountPlannerController(JdbcTemplate db) { this.db=db; this.json=new ObjectMapper(); }
 
     @GetMapping("/planner")
     public org.springframework.http.ResponseEntity<JsonNode> planner(@AuthenticationPrincipal Jwt jwt) throws Exception {
