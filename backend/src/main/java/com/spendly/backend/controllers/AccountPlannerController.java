@@ -41,6 +41,11 @@ public class AccountPlannerController {
         return planner;
     }
 
+    @GetMapping("/paychecks")
+    public java.util.List<Map<String,Object>> paychecks(@AuthenticationPrincipal Jwt jwt) {
+        return db.queryForList("SELECT period_id AS \"periodId\", paycheck, safe_credit AS \"safeCredit\", paycheck_date AS \"paycheckDate\" FROM account_paycheck_credits WHERE user_id=? ORDER BY created_at DESC",jwt.getSubject());
+    }
+
     public record PaycheckRequest(String periodId,BigDecimal paycheck,BigDecimal safeCredit,LocalDate paycheckDate) {}
 
     @PostMapping("/paychecks")
