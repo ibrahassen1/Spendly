@@ -4,7 +4,7 @@ import "./App.css";
 
 const API = import.meta.env.VITE_SPENDLY_API_URL || "http://localhost:8080";
 const money = value => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD"}).format(Number(value)||0);
-const today = () => new Date().toLocaleDateString("en-CA");
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
 export default function AuthenticatedDashboard({ getToken }) {
   const [planner, setPlanner] = useState(null);
@@ -57,7 +57,7 @@ export default function AuthenticatedDashboard({ getToken }) {
     if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(credit) || credit < 0 || credit > amount ||
         !/^\\d+(\\.\\d{1,2})?$/.test(paycheck.trim()) || !/^\\d+(\\.\\d{1,2})?$/.test(safeCredit.trim()) ||
         !paycheckDate || paycheckDate > today()) {
-      setStatus("Enter a valid paycheck, Safe-to-Spend allocation, and date."); return;
+      setStatus("Check the paycheck amount, allocation, and date (cannot be in the future)."); return;
     }
     setBusy(true); setStatus("");
     try {
