@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import SpendlyCoach from "./SpendlyCoach.jsx";
 
 const STORAGE_KEY = "spendly.finance-planner.v1";
 const COLORS = ["#3ad5aa", "#d5b46d", "#699cf0", "#c68ee8", "#e68f7c", "#6fd0d9", "#b7bd73"];
@@ -122,6 +123,8 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
   
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(planner)); }, [planner]);
   const [savingLive, setSavingLive] = useState(false);
+  const [savingPace, setSavingPace] = useState("moderate");
+  const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const [periodStart, setPeriodStart] = useState(() => new Date().toLocaleDateString("en-CA"));
   const period = planner.periods.find((p) => p.id === planner.selected) || planner.periods[0];
@@ -168,6 +171,34 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       setSavingLive(false);
     }
   };
+  // Recommendations are local planner suggestions only; production balance changes
+  // exclusively through the existing, confirmed saveLiveBudget API call.
+  const checksPerYear = { weekly: 52, biweekly: 26, semimonthly: 24, monthly: 12 }[planner.payFrequency || "biweekly"];
+  const goalMonths = Math.max(1, Number(planner.goalTimelineMonths) || 18);
+  const monthlyExpenses = entriesOf("expenses").reduce((sum, e) => sum + cleanAmount(e.planned), 0);
+  const expensesPerCheck = monthlyExpenses * 12 / checksPerYear;
+  const savingsTarget = cleanAmount(planner.goals?.savings?.target);
+  const investmentsTarget = cleanAmount(planner.goals?.investments?.target);
+  const savingsPerCheck = savingsTarget / (goalMonths * checksPerYear / 12);
+  const investmentsPerCheck = investmentsTarget / (goalMonths * checksPerYear / 12);
+  const recommendation = (() => {
+    if (paycheck <= 0 || expensesPerCheck > paycheck) return null;
+    const expenses = Math.min(100, Math.ceil(expensesPerCheck / paycheck * 100));
+    const remaining = 100 - expenses;
+    const goalPercent = (savingsTarget || investmentsTarget) ? Math.round(remaining * ({ slow: .35, moderate: .60, aggressive: .85 }[savingPace])) : 0;
+    const totalGoal = savingsPerCheck + investmentsPerCheck;
+    const savings = savingsTarget ? (investmentsTarget && totalGoal ? Math.round(goalPercent * savingsPerCheck / totalGoal) : goalPercent) : 0;
+    const investments = investmentsTarget ? goalPercent - savings : 0;
+    return { expenses, savings, investments, spend: 100 - expenses - savings - investments, feasible: totalGoal <= paycheck * goalPercent / 100 };
+  })();
+  const applyRecommendation = () => {
+    if (!recommendation) return;
+    setPlanner((previous) => {
+      const categories = previous.categories.map(c => ({ ...c, percent: Object.prototype.hasOwnProperty.call(recommendation,c.id) ? recommendation[c.id] : 0 }));
+      return { ...previous, categories };
+    });
+    setRecommendationDismissed(true);
+  };
   const exportData = () => {
     const blob = new Blob([JSON.stringify(planner, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -182,6 +213,47 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         <h2>Dashboard</h2>
         <p>Plan your paycheck and see where every dollar is going.</p>
       </div>
+      <SpendlyCoach
+        goals={{ ...planner.goals, timelineMonths: planner.goalTimelineMonths }}
+        onSave={({ savings, investments, months }) => {
+          setPlanner(previous => ({
+            ...previous,
+            goalTimelineMonths: months,
+            goals: {
+              ...previous.goals,
+              savings: { ...previous.goals?.savings, target: savings },
+              investments: { ...previous.goals?.investments, target: investments },
+            },
+          }));
+          setRecommendationDismissed(false);
+        }}
+      />
+      <div className="finance-toolbar">
+        <label>Pay schedule
+          <select value={planner.payFrequency || "biweekly"} onChange={e => setPlanner(previous => ({ ...previous, payFrequency: e.target.value }))}>
+            <option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option>
+            <option value="semimonthly">Twice a month</option><option value="monthly">Monthly</option>
+          </select>
+        </label>
+      </div>
+      {paycheck > 0 && !recommendationDismissed && <section className="finance-panel" style={{ marginBottom: 20 }}>
+        <span className="finance-kicker">RECOMMENDED SPLIT</span>
+        <h3>Here's a split based on your goals</h3>
+        <p>Choose a savings pace. This is a suggestion and will not change your live Safe to Spend balance.</p>
+        <div className="finance-toolbar">
+          {["slow","moderate","aggressive"].map(pace => <button type="button" className="finance-add" key={pace}
+            aria-pressed={savingPace===pace} onClick={() => setSavingPace(pace)}
+            style={{opacity:savingPace===pace?1:.6}}>{pace[0].toUpperCase()+pace.slice(1)}</button>)}
+        </div>
+        {!recommendation ? <p>Your recurring bills exceed this paycheck. Review your expenses to see a workable split.</p> : <>
+          {["spend","expenses","savings","investments"].filter(id=>recommendation[id]>0 || id==="spend").map(id=><p key={id}>
+            {({spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"})[id]}:
+            <strong> {recommendation[id]}% · {dollars(paycheck*recommendation[id]/100)}</strong>
+          </p>)}
+          {!recommendation.feasible && <p className="finance-warning">Your goals may take longer than the selected timeline.</p>}
+          <button type="button" className="finance-add" onClick={applyRecommendation}>Apply to planner only</button>
+        </>}
+      </section>}
       <div className="finance-toolbar">
         <label>Pay period
           <select value={period.id} onChange={(e) => setPlanner((p) => ({ ...p, selected: e.target.value }))}>
