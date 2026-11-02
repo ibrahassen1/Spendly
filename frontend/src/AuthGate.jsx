@@ -7,15 +7,15 @@ export default function AuthGate() {
   const [status, setStatus] = useState("");
   const [backendReady, setBackendReady] = useState(false);
   const checkStaging = async () => {
-    setStatus("Checking secure staging backend…");
+    setStatus("Checking local secure backend…");
     try {
       const token = await getToken();
       if (!token) throw new Error("Missing session token");
-      const response = await fetch("https://spendly-staging-staging.up.railway.app/api/planner", {
+      const response = await fetch("http://localhost:8080/api/planner", {
         headers: { Authorization: "Bearer " + token }
       });
       if (response.ok) { setBackendReady(true); setStatus(""); }
-      else setStatus("Staging returned HTTP " + response.status);
+      else setStatus("Local backend returned HTTP " + response.status);
     } catch (error) {
       setStatus("Connection failed: " + error.message);
     }
@@ -35,9 +35,9 @@ export default function AuthGate() {
     <section className="finance-panel">
       <span className="finance-kicker">ACCOUNT SECURITY</span>
       <h2>You're signed in</h2>
-      <p>Clerk sign-in is active. Your financial dashboard remains locked until the backend validates your identity and isolates your data from other accounts.</p>
-      <p>We will not load the existing shared production financial endpoints for signed-in users.</p>
-      <button type="button" className="finance-add" onClick={checkStaging}>Test authenticated staging connection</button>
+      <p>Clerk sign-in is active. Your financial dashboard remains locked until the local backend validates your identity.</p>
+      <p>Only account-scoped local endpoints are enabled; production financial endpoints remain disabled.</p>
+      <button type="button" className="finance-add" onClick={checkStaging}>Connect to local backend</button>
       {status && <p role="status">{status}</p>}
     </section>
   </main>;
