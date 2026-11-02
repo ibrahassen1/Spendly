@@ -84,7 +84,7 @@ export default function AuthenticatedDashboard({ getToken }) {
       <h1>Spendly</h1><UserButton />
     </header>
     <nav className="page-tabs" aria-label="Spendly pages" style={{display:"flex",gap:12,margin:"24px 0"}}>
-      {[["dashboard","Dashboard"],["goals","Goals"],["safe","Safe to Spend"]].map(([id,label)=>
+      {[["dashboard","Dashboard"],["goals","Goals"],["safe","Safe to Spend"]].map(([id,label])=>
         <button key={id} type="button" aria-current={page===id?"page":undefined}
           className={page===id?"active":""} onClick={()=>setPage(id)}>{label}</button>)}
     </nav>
