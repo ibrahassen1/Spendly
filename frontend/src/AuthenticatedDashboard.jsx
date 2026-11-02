@@ -55,7 +55,7 @@ export default function AuthenticatedDashboard({ getToken }) {
     e.preventDefault();
     const amount = Number(paycheck), credit = Number(safeCredit);
     if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(credit) || credit < 0 || credit > amount ||
-        !/^\\d+(\\.\\d{1,2})?$/.test(paycheck.trim()) || !/^\\d+(\\.\\d{1,2})?$/.test(safeCredit.trim()) ||
+        !/^\d+(\.\d{1,2})?$/.test(paycheck.trim()) || !/^\d+(\.\d{1,2})?$/.test(safeCredit.trim()) ||
         !paycheckDate || paycheckDate > today()) {
       setStatus("Check the paycheck amount, allocation, and date (cannot be in the future)."); return;
     }
