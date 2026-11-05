@@ -1630,3 +1630,68 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 .gmail-onboarding-card p { margin:0; color:#d2cbe7; line-height:1.65; }
 .gmail-onboarding-card .gmail-onboarding-privacy { font-size:.87rem; color:#bcaeea; }
 .gmail-onboarding-card button { width:100%; min-height:50px; margin:0; }
+
+
+/* Authenticated app: reuse the violet staging design without changing account-scoped APIs. */
+.spendly-restored { background:#0b0915; color:#f8f5ff; font-family:"Fredoka",system-ui,sans-serif; }
+.spendly-restored .dashboard { max-width:1080px; }
+.spendly-restored-header { margin:0 0 34px; }
+.spendly-restored-header h1 { font-family:"Fredoka",system-ui,sans-serif; font-size:clamp(2.2rem,4vw,3.4rem); font-weight:600; }
+.spendly-brand-dot { color:#ab91ff; }
+.spendly-restored .eyebrow,.spendly-restored .finance-kicker { color:#bbaaff; }
+.spendly-restored .finance-heading h2 { font-family:"Fredoka",system-ui,sans-serif; font-size:clamp(2rem,4vw,3.2rem); color:#fff; }
+.spendly-restored .finance-heading p:not(.eyebrow) { color:#b8b0d0; }
+.spendly-restored .finance-panel { background:#151226; border:1px solid #373051; border-radius:24px; box-shadow:none; margin-bottom:22px; padding:clamp(22px,3vw,34px); }
+.spendly-restored .finance-panel h3 { font-family:"Fredoka",system-ui,sans-serif; font-weight:500; }
+.spendly-restored .finance-panel p { color:#b8b0d0; }
+.spendly-restored .safe-top-zone { margin-bottom:26px; }
+.spendly-restored .safe-fintech-hero { min-height:190px !important; }
+.spendly-restored .safe-fintech-hero .amount { font-family:"Fredoka",system-ui,sans-serif; margin:12px 0; font-size:clamp(3.3rem,8vw,5.8rem); color:#fff; line-height:1.12; }
+.spendly-restored .safe-fintech-hero .label,.spendly-restored .safe-fintech-hero .safe-subtitle { color:#eee8ff; }
+.spendly-restored .safe-hero-bars { display:flex; align-items:flex-end; justify-content:center; height:64px; gap:7px; margin:20px auto 0; max-width:360px; opacity:.65; }
+.spendly-restored .safe-hero-bars span { flex:1; background:rgba(255,255,255,.56); border-radius:7px 7px 2px 2px; }
+.spendly-restored .safe-quick-actions { display:flex; gap:12px; flex-wrap:wrap; }
+.spendly-restored .safe-quick-actions button { flex:1; min-height:48px; }
+.spendly-restored .finance-add { background:#2a2346; color:#f1edff; border-color:#574b83; }
+.spendly-restored .finance-category { border-color:#393250; }
+.spendly-paycheck-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; align-items:end; margin-top:20px; }
+.spendly-paycheck-form label,.spendly-goal-controls label { display:flex; flex-direction:column; gap:8px; color:#d7cfee; font-size:.9rem; }
+.spendly-paycheck-form input,.spendly-goal-controls input { min-width:0; width:100%; background:#100e20; color:#fff; border:1px solid #494060; border-radius:14px; padding:13px 15px; }
+.spendly-paycheck-form .spendly-check-row { flex-direction:row; align-items:center; grid-column:1/-1; }
+.spendly-check-row input { width:18px; height:18px; accent-color:#9d83f7; }
+.spendly-paycheck-form > .coach-primary,.spendly-split-preview { grid-column:1/-1; }
+.spendly-split-preview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.spendly-split-preview div { background:#211b3a; border-radius:14px; padding:15px; display:flex; flex-direction:column; gap:6px; }
+.spendly-split-preview span { color:#afa4cb; font-size:.82rem; }
+.spendly-split-preview strong { color:#fff; font-size:1.05rem; }
+.spendly-goal { padding:10px 0 26px; margin-bottom:20px; border-bottom:1px solid #38304f; }
+.spendly-goal:last-of-type { border-bottom:0; }
+.spendly-goal .finance-category-top { align-items:baseline; }
+.spendly-goal progress { width:100%; height:12px; accent-color:#9f86ff; }
+.spendly-goal-controls { display:flex; align-items:end; gap:14px; flex-wrap:wrap; margin-top:16px; }
+.spendly-goal-controls label { flex:1; }
+.spendly-goal-controls button { min-height:48px; }
+.spendly-gmail-connection { margin:0 0 22px; }
+.spendly-gmail-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.spendly-gmail-actions .coach-primary { min-height:42px; }
+.spendly-sync-message { color:#cbbdff; font-size:.9rem; margin:0 0 18px; }
+.spendly-activity-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px; }
+.spendly-activity-heading > span { color:#a99fc6; font-size:.83rem; }
+.spendly-transaction { display:flex; align-items:center; gap:14px; padding:17px 0; border-top:1px solid #38304f; }
+.spendly-transaction-icon { width:42px; height:42px; flex:0 0 42px; display:grid; place-items:center; background:#2b2350; color:#c1acff; border-radius:14px; font-size:1.1rem; }
+.spendly-transaction-detail { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+.spendly-transaction-detail strong { color:#f8f5ff; font-weight:500; overflow-wrap:anywhere; }
+.spendly-transaction-detail small { color:#aaa2c1; line-height:1.5; }
+.spendly-transaction-right { display:flex; align-items:flex-end; flex-direction:column; gap:8px; }
+.spendly-transaction-right strong { white-space:nowrap; color:#fff; }
+.spendly-transaction-right button { padding:5px 9px; border:1px solid #534776; background:#28223d; color:#d8cbff; font-size:.74rem; border-radius:9px; }
+.spendly-transaction-right button:disabled { opacity:.5; }
+.spendly-restored .bottom-nav-item.selected { background:linear-gradient(145deg,#6752cc,#44328f); }
+@media(max-width:650px) {
+ .spendly-paycheck-form { grid-template-columns:minmax(0,1fr); }
+ .spendly-paycheck-form .spendly-check-row,.spendly-paycheck-form > .coach-primary,.spendly-split-preview { grid-column:auto; }
+ .spendly-split-preview { grid-template-columns:1fr; }
+ .spendly-restored .finance-panel { padding:22px 20px; }
+ .spendly-transaction { gap:9px; }
+ .spendly-transaction-icon { width:34px; height:34px; flex-basis:34px; }
+}
