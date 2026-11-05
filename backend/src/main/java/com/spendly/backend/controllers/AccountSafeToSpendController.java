@@ -23,7 +23,7 @@ public class AccountSafeToSpendController {
     public AccountSafeToSpendController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     public record PaycheckRequest(String periodId, BigDecimal paycheck, BigDecimal safeCredit, LocalDate paycheckDate) {}
-    public record Balance(BigDecimal allocation, LocalDate startDate) {}
+    public record Balance(BigDecimal allocation, BigDecimal countedSpending, BigDecimal safeToSpend, LocalDate startDate) {}
 
     private String user(Jwt jwt) {
         if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank())
@@ -31,8 +31,14 @@ public class AccountSafeToSpendController {
         return jwt.getSubject();
     }
     private Balance balance(String user) {
-        return jdbc.query("SELECT allocation,start_date FROM user_safe_balances WHERE user_id=?",
-            (rs,n) -> new Balance(rs.getBigDecimal(1),rs.getDate(2).toLocalDate()),user)
+        return jdbc.query("SELECT b.allocation, b.start_date, COALESCE((" +
+            "SELECT SUM(t.amount) FROM user_email_alert_transactions t " +
+            "WHERE t.user_id=b.user_id AND t.transaction_date>=b.start_date " +
+            "AND UPPER(t.status)='TEMPORARY'),0) AS counted_spending " +
+            "FROM user_safe_balances b WHERE b.user_id=?",
+            (rs,n) -> { BigDecimal allocation=rs.getBigDecimal(1);
+                BigDecimal spent=rs.getBigDecimal(3);
+                return new Balance(allocation,spent,allocation.subtract(spent),rs.getDate(2).toLocalDate()); },user)
             .stream().findFirst().orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND,"No paycheck submitted"));
     }
