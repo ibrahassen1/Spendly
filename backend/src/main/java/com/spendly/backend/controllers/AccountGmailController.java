@@ -12,6 +12,10 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.List;
+import java.time.LocalDate;
+import com.spendly.backend.services.GmailService;
+import com.spendly.backend.dto.GmailRefreshResponse;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -32,6 +36,7 @@ import tools.jackson.databind.ObjectMapper;
 @RequestMapping("/api/account/gmail")
 public class AccountGmailController {
     private final JdbcTemplate jdbc;
+    private final GmailService gmailService;
     private final String clientId;
     private final String clientSecret;
     private final String redirectUri;
@@ -40,12 +45,12 @@ public class AccountGmailController {
     private final HttpClient http = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public AccountGmailController(JdbcTemplate jdbc,
+    public AccountGmailController(JdbcTemplate jdbc, GmailService gmailService,
         @Value("${google.client-id}") String clientId,
         @Value("${google.client-secret}") String clientSecret,
         @Value("${google.redirect-uri}") String redirectUri,
         @Value("${spendly.gmail.token-encryption-key:}") String encryptionKey) {
-        this.jdbc=jdbc; this.clientId=clientId; this.clientSecret=clientSecret;
+        this.jdbc=jdbc; this.gmailService=gmailService; this.clientId=clientId; this.clientSecret=clientSecret;
         this.redirectUri=redirectUri; this.encryptionKey=encryptionKey;
     }
     private String user(Jwt jwt) {
@@ -100,6 +105,60 @@ public class AccountGmailController {
         jdbc.update("DELETE FROM user_gmail_connections WHERE user_id=?",user(jwt));
         return ResponseEntity.noContent().build();
     }
+
+    private String decrypt(String stored) {
+        try {
+            String[] parts=stored.split("\\.",-1);
+            if(parts.length!=2) throw new IllegalArgumentException("Invalid token format");
+            byte[] iv=Base64.getDecoder().decode(parts[0]);
+            if(iv.length!=12) throw new IllegalArgumentException("Invalid IV");
+            Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE,key(),new GCMParameterSpec(128,iv));
+            return new String(cipher.doFinal(Base64.getDecoder().decode(parts[1])),StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Unable to read saved Gmail connection");
+        }
+    }
+
+    @PostMapping("/sync")
+    public GmailRefreshResponse sync(@AuthenticationPrincipal Jwt jwt) throws Exception {
+        String id=user(jwt);
+        List<String> tokens=jdbc.query(
+            "SELECT encrypted_refresh_token FROM user_gmail_connections WHERE user_id=?",
+            (rs,n)->rs.getString(1),id);
+        if(tokens.isEmpty()) throw new ResponseStatusException(HttpStatus.CONFLICT,"Connect Gmail first");
+        List<LocalDate> dates=jdbc.query(
+            "SELECT start_date FROM user_safe_balances WHERE user_id=?",
+            (rs,n)->rs.getDate(1).toLocalDate(),id);
+        if(dates.isEmpty()) throw new ResponseStatusException(HttpStatus.CONFLICT,"Submit a paycheck first");
+        return gmailService.refreshBankAlertsForUser(id,decrypt(tokens.get(0)),dates.get(0));
+    }
+
+    @GetMapping("/transactions")
+    public List<Map<String,Object>> transactions(@AuthenticationPrincipal Jwt jwt) {
+        return jdbc.queryForList(
+            "SELECT id,merchant,amount,card_last4 AS \"cardLast4\",transaction_date AS \"date\"," +
+            "transaction_time AS \"transactionTime\",source_bank AS \"sourceBank\",status " +
+            "FROM user_email_alert_transactions WHERE user_id=? ORDER BY transaction_time DESC NULLS LAST,id DESC LIMIT 100",
+            user(jwt));
+    }
+
+    @DeleteMapping("/transactions/{id}")
+    public ResponseEntity<Void> deleteTransaction(@AuthenticationPrincipal Jwt jwt,@PathVariable Long id) {
+        int changed=jdbc.update("UPDATE user_email_alert_transactions SET status='DELETED',updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?",
+            id,user(jwt));
+        if(changed==0) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/transactions/{id}/restore")
+    public ResponseEntity<Void> restoreTransaction(@AuthenticationPrincipal Jwt jwt,@PathVariable Long id) {
+        int changed=jdbc.update("UPDATE user_email_alert_transactions SET status='TEMPORARY',updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?",
+            id,user(jwt));
+        if(changed==0) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/callback")
     @Transactional(rollbackFor=Exception.class)
     public ResponseEntity<String> callback(@RequestParam String code,@RequestParam String state) throws Exception {
