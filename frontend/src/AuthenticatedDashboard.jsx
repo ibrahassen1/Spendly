@@ -11,6 +11,7 @@ export default function AuthenticatedDashboard({ getToken }) {
   const [gmailConnected, setGmailConnected] = useState(null);
   const [gmailBusy, setGmailBusy] = useState(false);
   const [gmailMessage, setGmailMessage] = useState("");
+  const [transactions, setTransactions] = useState([]);
   const [balance, setBalance] = useState(null);
   const [history, setHistory] = useState([]);
   const [page, setPage] = useState("dashboard");
@@ -38,14 +39,16 @@ export default function AuthenticatedDashboard({ getToken }) {
   }, [getToken]);
 
   const refresh = useCallback(async () => {
-    const [p,b,h] = await Promise.all([
+    const [p,b,h,t] = await Promise.all([
       request("/api/planner"),
       request("/api/account/safe-to-spend"),
-      request("/api/account/safe-to-spend/paychecks")
+      request("/api/account/safe-to-spend/paychecks"),
+      request("/api/account/gmail/transactions")
     ]);
     setPlanner(p);
     setBalance(b);
     setHistory(Array.isArray(h) ? h : []);
+    setTransactions(Array.isArray(t) ? t : []);
   }, [request]);
 
   useEffect(() => {
@@ -93,6 +96,30 @@ export default function AuthenticatedDashboard({ getToken }) {
       setGmailMessage("Gmail disconnected.");
     } catch (error) {
       setGmailMessage("Unable to disconnect Gmail: " + error.message);
+    } finally { setGmailBusy(false); }
+  };
+
+  const syncGmail = async () => {
+    setGmailBusy(true); setGmailMessage("");
+    try {
+      const result = await request("/api/account/gmail/sync", { method:"POST" });
+      await refresh();
+      setGmailMessage("Sync complete: " + result.newTransactionCount + " new transaction(s).");
+    } catch (error) {
+      setGmailMessage("Gmail sync failed: " + error.message);
+    } finally { setGmailBusy(false); }
+  };
+
+  const updateTransaction = async (transaction, restore) => {
+    setGmailBusy(true); setGmailMessage("");
+    try {
+      await request("/api/account/gmail/transactions/" + transaction.id + (restore ? "/restore" : ""), {
+        method: restore ? "POST" : "DELETE"
+      });
+      await refresh();
+      setGmailMessage(restore ? "Transaction restored." : "Transaction excluded from spending.");
+    } catch (error) {
+      setGmailMessage("Unable to update transaction: " + error.message);
     } finally { setGmailBusy(false); }
   };
 
@@ -186,7 +213,7 @@ export default function AuthenticatedDashboard({ getToken }) {
       <div className="finance-heading"><p className="eyebrow">YOUR FINANCIAL OVERVIEW</p><h2>Dashboard</h2><p>Your authenticated account on the local development backend.</p></div>
       <section className="finance-panel">
         <span className="finance-kicker">SAFE TO SPEND BALANCE</span>
-        <h3>{balance ? money(balance.allocation) : "No paycheck recorded"}</h3>
+        <h3>{balance ? money(balance.safeToSpend) : "No paycheck recorded"}</h3>
         <p>{history.length} recorded paycheck{history.length===1?"":"s"}</p>
       </section>
       <section className="finance-panel" style={{marginTop:20}}>
@@ -244,20 +271,34 @@ export default function AuthenticatedDashboard({ getToken }) {
     {page==="safe" && <>
       <div className="finance-heading"><p className="eyebrow">YOUR SPENDING</p><h2>Safe to Spend</h2></div>
       <section className="finance-panel">
-        <h3>{balance ? money(balance.allocation) : "No balance yet"}</h3>
-        <p>Account-specific paycheck credits. Gmail transactions and spending deductions are not yet connected.</p>
+        <h3>{balance ? money(balance.safeToSpend) : "No balance yet"}</h3>
+        <p>{balance ? money(balance.allocation) + " allocated − " + money(balance.countedSpending) + " imported spending" : "Submit a paycheck to begin tracking spending."}</p>
         {balance && <p>Tracking since {balance.startDate}</p>}
       </section>
       <section className="finance-panel" style={{marginTop:20}}>
         <span className="finance-kicker">GMAIL CONNECTION</span>
         <h3>{gmailConnected === true ? "Gmail connected" : gmailConnected === false ? "Gmail not connected" : "Checking Gmail connection…"}</h3>
-        <p>Connect your Gmail to authorize future bank-alert syncing. Connecting alone does not import transactions or change your balance.</p>
+        <p>Connect Gmail, then sync your bank-alert emails. Only recognized transactions are counted toward your spending.</p>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
           {gmailConnected === false && !gmailBusy && <button type="button" className="finance-add" onClick={connectGmail}>{gmailBusy ? "Connecting…" : "Connect Gmail"}</button>}
+          {gmailConnected === true && <button type="button" className="finance-add" disabled={gmailBusy || !balance} onClick={syncGmail}>{gmailBusy ? "Syncing…" : "Sync Gmail"}</button>}
           {gmailConnected === true && <button type="button" disabled={gmailBusy} onClick={disconnectGmail}>{gmailBusy ? "Disconnecting…" : "Disconnect Gmail"}</button>}
           <button type="button" disabled={gmailBusy} onClick={refreshGmail}>Refresh status</button>
         </div>
         {gmailMessage && <p role="status">{gmailMessage}</p>}
+      </section>
+      <section className="finance-panel" style={{marginTop:20}}>
+        <span className="finance-kicker">BANK ALERT TRANSACTIONS</span>
+        {transactions.length ? transactions.map(t=><div key={t.id} className="finance-category">
+          <div className="finance-category-top">
+            <span>{t.merchant || "Bank purchase"} · {t.date}</span>
+            <strong>{money(t.amount)}</strong>
+          </div>
+          <p>{t.sourceBank} {t.cardLast4 ? "· Card " + t.cardLast4 : ""} · {t.status === "DELETED" ? "Excluded" : "Counted"}</p>
+          <button type="button" disabled={gmailBusy} onClick={()=>updateTransaction(t,t.status === "DELETED")}>
+            {t.status === "DELETED" ? "Restore" : "Exclude"}
+          </button>
+        </div>) : <p>No bank-alert transactions synced yet.</p>}
       </section>
       {allocations.length>0 && <section className="finance-panel" style={{marginTop:20}}>
         <span className="finance-kicker">PLANNED ALLOCATIONS</span>
@@ -266,6 +307,6 @@ export default function AuthenticatedDashboard({ getToken }) {
         </div>)}
       </section>}
     </>}
-    <p style={{marginTop:24,opacity:.75}}>Local development only. Production is unchanged. Gmail spending is not included in this balance.</p>
+    <p style={{marginTop:24,opacity:.75}}>Feature branch only. Production is unchanged.</p>
   </main>;
 }
