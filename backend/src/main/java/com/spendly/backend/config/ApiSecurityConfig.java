@@ -30,6 +30,7 @@ public class ApiSecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/account/gmail/callback").permitAll()
+                .requestMatchers("/api/account/gmail/sync", "/api/account/gmail/transactions", "/api/account/gmail/transactions/**").authenticated()
                 .requestMatchers("/api/planner", "/api/account/safe-to-spend", "/api/account/safe-to-spend/paychecks", "/api/account/gmail/connect", "/api/account/gmail/status", "/api/account/gmail/connection").authenticated()
                 .requestMatchers("/api/**").denyAll()
                 .anyRequest().permitAll())
