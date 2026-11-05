@@ -8,6 +8,9 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(
 
 export default function AuthenticatedDashboard({ getToken }) {
   const [planner, setPlanner] = useState(null);
+  const [gmailConnected, setGmailConnected] = useState(null);
+  const [gmailBusy, setGmailBusy] = useState(false);
+  const [gmailMessage, setGmailMessage] = useState("");
   const [balance, setBalance] = useState(null);
   const [history, setHistory] = useState([]);
   const [page, setPage] = useState("dashboard");
@@ -53,6 +56,45 @@ export default function AuthenticatedDashboard({ getToken }) {
     })();
     return () => { active = false; };
   }, [refresh]);
+
+  const refreshGmail = useCallback(async () => {
+    try {
+      const result = await request("/api/account/gmail/status");
+      setGmailConnected(Boolean(result?.connected));
+      setGmailMessage("");
+    } catch (error) {
+      setGmailConnected(null);
+      setGmailMessage("Unable to check Gmail connection: " + error.message);
+    }
+  }, [request]);
+
+  useEffect(() => { refreshGmail(); }, [refreshGmail]);
+
+  const connectGmail = async () => {
+    setGmailBusy(true); setGmailMessage("");
+    try {
+      const result = await request("/api/account/gmail/connect", { method: "POST" });
+      const url = new URL(result.authorizationUrl);
+      if (url.protocol !== "https:" || url.hostname !== "accounts.google.com")
+        throw new Error("Unexpected Google authorization URL.");
+      window.location.assign(url.toString());
+    } catch (error) {
+      setGmailMessage("Unable to connect Gmail: " + error.message);
+      setGmailBusy(false);
+    }
+  };
+
+  const disconnectGmail = async () => {
+    if (!window.confirm("Disconnect Gmail from this Spendly account?")) return;
+    setGmailBusy(true); setGmailMessage("");
+    try {
+      await request("/api/account/gmail/connection", { method: "DELETE" });
+      setGmailConnected(false);
+      setGmailMessage("Gmail disconnected.");
+    } catch (error) {
+      setGmailMessage("Unable to disconnect Gmail: " + error.message);
+    } finally { setGmailBusy(false); }
+  };
 
   const submitPaycheck = async e => {
     e.preventDefault();
@@ -205,6 +247,17 @@ export default function AuthenticatedDashboard({ getToken }) {
         <h3>{balance ? money(balance.allocation) : "No balance yet"}</h3>
         <p>Account-specific paycheck credits. Gmail transactions and spending deductions are not yet connected.</p>
         {balance && <p>Tracking since {balance.startDate}</p>}
+      </section>
+      <section className="finance-panel" style={{marginTop:20}}>
+        <span className="finance-kicker">GMAIL CONNECTION</span>
+        <h3>{gmailConnected === true ? "Gmail connected" : gmailConnected === false ? "Gmail not connected" : "Checking Gmail connection…"}</h3>
+        <p>Connect your Gmail to authorize future bank-alert syncing. Connecting alone does not import transactions or change your balance.</p>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
+          {gmailConnected === false && <button type="button" className="finance-add" disabled={gmailBusy} onClick={connectGmail}>{gmailBusy ? "Connecting…" : "Connect Gmail"}</button>}
+          {gmailConnected === true && <button type="button" disabled={gmailBusy} onClick={disconnectGmail}>{gmailBusy ? "Disconnecting…" : "Disconnect Gmail"}</button>}
+          <button type="button" disabled={gmailBusy} onClick={refreshGmail}>Refresh status</button>
+        </div>
+        {gmailMessage && <p role="status">{gmailMessage}</p>}
       </section>
       {allocations.length>0 && <section className="finance-panel" style={{marginTop:20}}>
         <span className="finance-kicker">PLANNED ALLOCATIONS</span>
