@@ -14,7 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Account-scoped ledger. Never reads or writes legacy shared financial tables.
- * Gmail transactions are excluded until account-scoped Gmail OAuth is implemented.
+ * Account-scoped Gmail spending is deducted using the original Safe-to-Spend formula.
  */
 @RestController
 @RequestMapping("/api/account/safe-to-spend")
