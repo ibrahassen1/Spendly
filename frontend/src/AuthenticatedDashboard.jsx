@@ -199,114 +199,135 @@ export default function AuthenticatedDashboard({ getToken }) {
   const goals = planner?.goals || {};
   const allocations = categories.map(c=>({...c,amount:(Number(period?.paycheck)||0)*(Number(c.percent)||0)/100}));
 
-  return <main className="finance-page" style={{maxWidth:1100,margin:"0 auto",padding:"28px 20px"}}>
-    <header style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:20}}>
-      <h1>Spendly</h1><UserButton />
-    </header>
-    <nav className="page-tabs" aria-label="Spendly pages" style={{display:"flex",gap:12,margin:"24px 0"}}>
-      {[["dashboard","Dashboard"],["goals","Goals"],["safe","Safe to Spend"]].map(([id,label])=>
-        <button key={id} type="button" aria-current={page===id?"page":undefined}
-          className={page===id?"active":""} onClick={()=>setPage(id)}>{label}</button>)}
-    </nav>
-    {status && <p role="status">{status}</p>}
-    {page==="dashboard" && <>
-      <div className="finance-heading"><p className="eyebrow">YOUR FINANCIAL OVERVIEW</p><h2>Dashboard</h2><p>Your authenticated account on the local development backend.</p></div>
-      <section className="finance-panel">
-        <span className="finance-kicker">SAFE TO SPEND BALANCE</span>
-        <h3>{balance ? money(balance.safeToSpend) : "No paycheck recorded"}</h3>
-        <p>{history.length} recorded paycheck{history.length===1?"":"s"}</p>
-      </section>
-      <section className="finance-panel" style={{marginTop:20}}>
-        <span className="finance-kicker">ADD PAYCHECK</span>
-        <form noValidate onSubmit={submitPaycheck} style={{display:"grid",gap:14,maxWidth:420,marginTop:12}}>
-          <label>Paycheck amount
-            <input required type="number" min="0.01" step="0.01" value={paycheck} onChange={e=>setPaycheck(e.target.value)} placeholder="100.00" style={{display:"block",width:"100%",padding:12,marginTop:6}} />
-          </label>
-          <label style={{display:"flex",gap:8,alignItems:"center"}}>
-            <input type="checkbox" checked={useRecommended} onChange={e=>setUseRecommended(e.target.checked)} />
-            Use recommended split (70% spending, 20% savings, 10% investments)
-          </label>
-          {useRecommended ? <div className="finance-category">
-            <p>Safe to Spend: {money(Math.round(Number(paycheck || 0) * 70) / 100)}</p>
-            <p>Savings: {money(Math.round(Number(paycheck || 0) * 20) / 100)}</p>
-            <p>Investments: {money((Math.round(Number(paycheck || 0) * 100) - Math.round(Number(paycheck || 0) * 70) - Math.round(Number(paycheck || 0) * 20)) / 100)}</p>
-          </div> : <label>Safe-to-Spend portion
-            <input required type="number" min="0" step="0.01" value={safeCredit} onChange={e=>setSafeCredit(e.target.value)} placeholder="70.00" style={{display:"block",width:"100%",padding:12,marginTop:6}} />
-          </label>}
-          <label>Paycheck date
-            <input required type="date" max={today()} value={paycheckDate} onChange={e=>setPaycheckDate(e.target.value)} style={{display:"block",width:"100%",padding:12,marginTop:6}} />
-          </label>
-          <button type="submit" className="finance-add" disabled={busy} onClick={() => setStatus("Save button clicked. Validating paycheck…")}>{busy?"Saving…":"Save paycheck"}</button>
-          {status && <p role="status" style={{margin:0}}>{status}</p>}
-        </form>
-      </section>
-      <section className="finance-panel" style={{marginTop:20}}>
-        <span className="finance-kicker">PAYCHECK HISTORY</span>
-        {history.length ? history.map(p=><div key={p.periodId} className="finance-category">
-          <div className="finance-category-top"><span>{p.paycheckDate}</span><strong>{money(p.paycheck)}</strong></div>
-          <p>{money(p.safeCredit)} credited to Safe to Spend</p>
-        </div>) : <p>No paychecks recorded yet.</p>}
-      </section>
-    </>}
-    {page==="goals" && <>
-      <div className="finance-heading"><p className="eyebrow">YOUR PROGRESS</p><h2>Financial Goals</h2></div>
-      <section className="finance-panel">
-        {["savings","investments","expenses"].map(id=>{
-          const goal=goals[id]||{}, target=Number(goal.target)||0, saved=(Number(goal.allocatedCents)||0)/100;
-          return <div key={id} style={{marginBottom:24}}>
-            <h3>{id[0].toUpperCase()+id.slice(1)}</h3>
-            <p>{money(saved)} allocated of {money(target)} goal</p>
-            <div style={{display:"flex",gap:10,alignItems:"end",flexWrap:"wrap",margin:"12px 0"}}>
-              <label>Target amount
-                <input type="number" min="0" step="0.01" value={goalTargets[id] ?? String(target)} onChange={e=>setGoalTargets(prev=>({...prev,[id]:e.target.value}))} style={{display:"block",padding:10,marginTop:6,maxWidth:180}} />
-              </label>
-              <button type="button" className="finance-add" disabled={goalSaving} onClick={()=>saveGoal(id)}>{goalSaving?"Saving…":"Save target"}</button>
+  const balanceValue = balance?.safeToSpend;
+  const visibleTransactions = transactions.filter(t => t.status !== "DELETED");
+  const dateLabel = value => {
+    if (!value) return "Unknown date";
+    const iso = String(value).slice(0,10);
+    const parts = iso.split("-");
+    return parts.length === 3 ? new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2])).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : String(value);
+  };
+
+  return <main className="app spendly-restored">
+    <div className="dashboard">
+      <header className="app-header spendly-restored-header">
+        <div><p className="eyebrow">YOUR MONEY, YOUR WAY</p><h1>Spendly<span className="spendly-brand-dot">.</span></h1></div>
+        <UserButton />
+      </header>
+      {status && <p role="status" className="gmail-toast">{status}</p>}
+
+      {page==="dashboard" && <>
+        <section className="finance-heading">
+          <p className="eyebrow">YOUR FINANCIAL OVERVIEW</p><h2>Dashboard</h2>
+          <p>Make your money make sense.</p>
+        </section>
+        <div className="safe-top-zone">
+          <section className="safe-fintech-hero">
+            <p className="label">SAFE TO SPEND</p>
+            <h2 className="amount">{balance ? money(balanceValue) : "—"}</h2>
+            <p className="safe-subtitle">{balance ? money(balance.allocation) + " allocated · " + money(balance.countedSpending) + " in purchases" : "Add a paycheck to start tracking"}</p>
+            <div className="safe-hero-bars" aria-hidden="true">
+              {[30,45,62,48,72,58,82,70,94,78,100,84].map((h,i)=><span key={i} style={{height:h+"%"}} />)}
             </div>
-            <progress value={target>0?Math.min(100,saved/target*100):0} max="100" style={{width:"100%"}} />
-          </div>;
-        })}
-        <p>Goal targets are saved to your account. Allocated progress is still read-only; no bank transfers are performed.</p>
-      </section>
-    </>}
-    {page==="safe" && <>
-      <div className="finance-heading"><p className="eyebrow">YOUR SPENDING</p><h2>Safe to Spend</h2></div>
-      <section className="finance-panel">
-        <h3>{balance ? money(balance.safeToSpend) : "No balance yet"}</h3>
-        <p>{balance ? money(balance.allocation) + " allocated − " + money(balance.countedSpending) + " imported spending" : "Submit a paycheck to begin tracking spending."}</p>
-        {balance && <p>Tracking since {balance.startDate}</p>}
-      </section>
-      <section className="finance-panel" style={{marginTop:20}}>
-        <span className="finance-kicker">GMAIL CONNECTION</span>
-        <h3>{gmailConnected === true ? "Gmail connected" : gmailConnected === false ? "Gmail not connected" : "Checking Gmail connection…"}</h3>
-        <p>Connect Gmail, then sync your bank-alert emails. Only recognized transactions are counted toward your spending.</p>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
-          {gmailConnected === false && !gmailBusy && <button type="button" className="finance-add" onClick={connectGmail}>{gmailBusy ? "Connecting…" : "Connect Gmail"}</button>}
-          {gmailConnected === true && <button type="button" className="finance-add" disabled={gmailBusy || !balance} onClick={syncGmail}>{gmailBusy ? "Syncing…" : "Sync Gmail"}</button>}
-          {gmailConnected === true && <button type="button" disabled={gmailBusy} onClick={disconnectGmail}>{gmailBusy ? "Disconnecting…" : "Disconnect Gmail"}</button>}
-          <button type="button" disabled={gmailBusy} onClick={refreshGmail}>Refresh status</button>
-        </div>
-        {gmailMessage && <p role="status">{gmailMessage}</p>}
-      </section>
-      <section className="finance-panel" style={{marginTop:20}}>
-        <span className="finance-kicker">BANK ALERT TRANSACTIONS</span>
-        {transactions.length ? transactions.map(t=><div key={t.id} className="finance-category">
-          <div className="finance-category-top">
-            <span>{t.merchant || "Bank purchase"} · {t.date}</span>
-            <strong>{money(t.amount)}</strong>
+          </section>
+          <div className="safe-quick-actions">
+            <button type="button" onClick={()=>setPage("safe")}>View spending</button>
+            <button type="button" onClick={()=>setPage("goals")}>Your goals</button>
           </div>
-          <p>{t.sourceBank} {t.cardLast4 ? "· Card " + t.cardLast4 : ""} · {t.status === "DELETED" ? "Excluded" : "Counted"}</p>
-          <button type="button" disabled={gmailBusy} onClick={()=>updateTransaction(t,t.status === "DELETED")}>
-            {t.status === "DELETED" ? "Restore" : "Exclude"}
-          </button>
-        </div>) : <p>No bank-alert transactions synced yet.</p>}
-      </section>
-      {allocations.length>0 && <section className="finance-panel" style={{marginTop:20}}>
-        <span className="finance-kicker">PLANNED ALLOCATIONS</span>
-        {allocations.map(c=><div key={c.id} className="finance-category">
-          <div className="finance-category-top"><span>{c.name}</span><strong>{money(c.amount)}</strong></div>
-        </div>)}
-      </section>}
-    </>}
-    <p style={{marginTop:24,opacity:.75}}>Feature branch only. Production is unchanged.</p>
+        </div>
+        <section className="finance-panel spendly-paycheck-card">
+          <span className="finance-kicker">NEW PAYCHECK</span>
+          <h3>Add money to your plan</h3>
+          <p>Save a paycheck and choose how much goes toward Safe to Spend.</p>
+          <form noValidate onSubmit={submitPaycheck} className="spendly-paycheck-form">
+            <label>Paycheck amount ($)<input required type="number" min="0.01" step="0.01" value={paycheck} onChange={e=>setPaycheck(e.target.value)} placeholder="Enter paycheck" /></label>
+            <label>Date received<input required type="date" max={today()} value={paycheckDate} onChange={e=>setPaycheckDate(e.target.value)} /></label>
+            <label className="spendly-check-row"><input type="checkbox" checked={useRecommended} onChange={e=>setUseRecommended(e.target.checked)}/> Use recommended split (70% spending / 20% savings / 10% investments)</label>
+            {!useRecommended && <label>Safe-to-Spend portion ($)<input required type="number" min="0" step="0.01" value={safeCredit} onChange={e=>setSafeCredit(e.target.value)} placeholder="Amount available to spend" /></label>}
+            {useRecommended && paycheck && <div className="spendly-split-preview">
+              <div><span>Safe to Spend</span><strong>{money(Math.round(Number(paycheck||0)*70)/100)}</strong></div>
+              <div><span>Savings</span><strong>{money(Math.round(Number(paycheck||0)*20)/100)}</strong></div>
+              <div><span>Investments</span><strong>{money((Math.round(Number(paycheck||0)*100)-Math.round(Number(paycheck||0)*70)-Math.round(Number(paycheck||0)*20))/100)}</strong></div>
+            </div>}
+            <button className="coach-primary" type="submit" disabled={busy}>{busy?"Saving…":"Save paycheck"}</button>
+          </form>
+        </section>
+        <section className="finance-panel spendly-history">
+          <span className="finance-kicker">PAYCHECK HISTORY</span>
+          <h3>Your recent paychecks</h3>
+          {history.length ? history.map(p=><div className="finance-category" key={p.periodId}>
+            <div className="finance-category-top"><span>{dateLabel(p.paycheckDate)}</span><strong>{money(p.paycheck)}</strong></div>
+            <p>{money(p.safeCredit)} added to Safe to Spend</p>
+          </div>) : <p>No paychecks yet.</p>}
+        </section>
+      </>}
+
+      {page==="goals" && <>
+        <div className="finance-heading"><p className="eyebrow">YOUR PROGRESS</p><h2>Financial Goals</h2><p>Little by little adds up.</p></div>
+        <section className="finance-panel">
+          {["savings","investments","expenses"].map(id=>{
+            const goal=goals[id]||{}, target=Number(goal.target)||0, saved=(Number(goal.allocatedCents)||0)/100;
+            const progress=target>0?Math.min(100,saved/target*100):0;
+            return <div key={id} className="spendly-goal">
+              <div className="finance-category-top"><h3>{id[0].toUpperCase()+id.slice(1)}</h3><strong>{Math.round(progress)}%</strong></div>
+              <p>{money(saved)} allocated of {money(target)} goal</p>
+              <progress value={progress} max="100" />
+              <div className="spendly-goal-controls">
+                <label>Goal target ($)<input type="number" min="0" step="0.01" value={goalTargets[id] ?? String(target)} onChange={e=>setGoalTargets(prev=>({...prev,[id]:e.target.value}))}/></label>
+                <button className="finance-add" type="button" disabled={goalSaving} onClick={()=>saveGoal(id)}>{goalSaving?"Saving…":"Save goal"}</button>
+              </div>
+            </div>;
+          })}
+          <p>Progress reflects allocations you've recorded, not transfers made at your bank.</p>
+        </section>
+      </>}
+
+      {page==="safe" && <>
+        <div className="finance-heading"><p className="eyebrow">YOUR SPENDING</p><h2>Safe to Spend</h2><p>Know what you can spend today.</p></div>
+        <div className="safe-top-zone">
+          <section className="safe-fintech-hero">
+            <p className="label">AVAILABLE TO SPEND</p>
+            <h2 className="amount">{balance ? money(balanceValue) : "—"}</h2>
+            <p className="safe-subtitle">{balance ? money(balance.allocation)+" allocated − "+money(balance.countedSpending)+" spent" : "Submit a paycheck to begin tracking"}</p>
+            {balance && <p className="safe-subtitle">Tracking since {dateLabel(balance.startDate)}</p>}
+          </section>
+        </div>
+        <section className="gmail-compact spendly-gmail-connection">
+          <div className="gmail-compact-info"><span className="gmail-status-dot" /><span>{gmailConnected === true ? "Gmail connected" : gmailConnected === false ? "Connect Gmail to sync purchases" : "Checking Gmail connection…"}</span></div>
+          <div className="spendly-gmail-actions">
+            {gmailConnected === false && <button type="button" className="coach-primary" disabled={gmailBusy} onClick={connectGmail}>{gmailBusy?"Connecting…":"Connect Gmail"}</button>}
+            {gmailConnected === true && <button type="button" className="coach-primary" disabled={gmailBusy || !balance} onClick={syncGmail}>{gmailBusy?"Syncing…":"Sync Gmail"}</button>}
+            <details className="gmail-settings"><summary>Settings</summary>
+              <div className="gmail-settings-panel">
+                <p>Gmail is used only to read recognized bank purchase alerts.</p>
+                <button type="button" className="finance-add" disabled={gmailBusy} onClick={refreshGmail}>Refresh status</button>
+                {gmailConnected === true && <button type="button" className="finance-add" disabled={gmailBusy} onClick={disconnectGmail}>Disconnect Gmail</button>}
+              </div>
+            </details>
+          </div>
+        </section>
+        {gmailMessage && <p role="status" className="spendly-sync-message">{gmailMessage}</p>}
+        <section className="finance-panel spendly-activity">
+          <div className="spendly-activity-heading"><div><span className="finance-kicker">RECENT ACTIVITY</span><h3>Transactions</h3></div><span>{visibleTransactions.length} counted</span></div>
+          {transactions.length ? transactions.map(t=><div className="spendly-transaction" key={t.id}>
+            <span className="spendly-transaction-icon">↗</span>
+            <div className="spendly-transaction-detail"><strong>{t.merchant || "Bank purchase"}</strong><small>{dateLabel(t.date)} · {String(t.sourceBank||"").replace("_"," ")} {t.cardLast4 ? "· •••• "+t.cardLast4 : ""}</small></div>
+            <div className="spendly-transaction-right"><strong>{money(t.amount)}</strong><button type="button" disabled={gmailBusy} onClick={()=>updateTransaction(t,t.status === "DELETED")}>{t.status==="DELETED"?"Restore":"Exclude"}</button></div>
+          </div>) : <p>No transactions synced yet. Connect Gmail and sync to import recognized alerts.</p>}
+        </section>
+        {allocations.length>0 && <section className="finance-panel spendly-planned-allocations">
+          <span className="finance-kicker">PLANNED ALLOCATIONS</span>
+          {allocations.map(c=><div className="finance-category" key={c.id}><div className="finance-category-top"><span>{c.name}</span><strong>{money(c.amount)}</strong></div></div>)}
+        </section>}
+      </>}
+
+      <nav className="spendly-bottom-nav" aria-label="Spendly pages">
+        {[["dashboard","Dashboard"],["goals","Goals"],["safe","Safe to Spend"]].map(([id,label])=>
+          <button key={id} className={"bottom-nav-item"+(page===id?" selected":"")} type="button" aria-current={page===id?"page":undefined} onClick={()=>{setPage(id);setStatus("");}}>
+            {id==="dashboard"?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>:id==="goals"?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/></svg>}
+            <span>{label}</span>
+          </button>)}
+      </nav>
+    </div>
   </main>;
 }
