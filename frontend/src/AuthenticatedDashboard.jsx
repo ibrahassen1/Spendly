@@ -253,7 +253,7 @@ export default function AuthenticatedDashboard({ getToken }) {
         <h3>{gmailConnected === true ? "Gmail connected" : gmailConnected === false ? "Gmail not connected" : "Checking Gmail connection…"}</h3>
         <p>Connect your Gmail to authorize future bank-alert syncing. Connecting alone does not import transactions or change your balance.</p>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
-          {gmailConnected === false && <button type="button" className="finance-add" disabled={gmailBusy} onClick={connectGmail}>{gmailBusy ? "Connecting…" : "Connect Gmail"}</button>}
+          {gmailConnected === false && !gmailBusy && <button type="button" className="finance-add" onClick={connectGmail}>{gmailBusy ? "Connecting…" : "Connect Gmail"}</button>}
           {gmailConnected === true && <button type="button" disabled={gmailBusy} onClick={disconnectGmail}>{gmailBusy ? "Disconnecting…" : "Disconnect Gmail"}</button>}
           <button type="button" disabled={gmailBusy} onClick={refreshGmail}>Refresh status</button>
         </div>
