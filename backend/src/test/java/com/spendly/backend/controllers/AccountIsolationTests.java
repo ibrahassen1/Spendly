@@ -93,4 +93,47 @@ class AccountIsolationTests {
                         && sql.contains("WHERE b.user_id=?")),
                 any(RowMapper.class), eq("clerk-bob"));
     }
+    @Test
+    void adjustmentHistoryOnlyReadsTheSignedInUsersRows() {
+        when(jdbc.queryForList(anyString(), eq("clerk-bob"))).thenReturn(List.of());
+        new AccountSafeToSpendController(jdbc).adjustments(bob);
+        verify(jdbc).queryForList(
+                argThat(sql -> sql.contains("FROM user_money_adjustments")
+                        && sql.contains("WHERE user_id=?")),
+                eq("clerk-bob"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void duplicateAdjustmentIsIdempotentForTheSameUser() {
+        when(jdbc.query(
+                argThat(sql -> sql.contains("SELECT amount FROM user_money_adjustments")),
+                any(RowMapper.class), eq("clerk-alice"), eq("once")))
+                .thenReturn(List.of(new BigDecimal("20.00")));
+
+        when(jdbc.query(
+                argThat(sql -> sql.contains("FROM user_safe_balances b WHERE b.user_id=?")),
+                any(RowMapper.class), eq("clerk-alice")))
+                .thenReturn(List.of(new AccountSafeToSpendController.Balance(
+                        new BigDecimal("220.00"), BigDecimal.ZERO,
+                        new BigDecimal("220.00"), LocalDate.of(2026, 11, 1))));
+
+        var result = new AccountSafeToSpendController(jdbc).adjust(
+                alice, new AccountSafeToSpendController.AdjustmentRequest(
+                        "once", new BigDecimal("20.00")));
+
+        assertEquals(new BigDecimal("220.00"), result.safeToSpend());
+        verify(jdbc, never()).update(anyString(), any(Object[].class));
+    }
+
+    @Test
+    void invalidAdjustmentIsRejectedWithoutDatabaseWrites() {
+        var controller = new AccountSafeToSpendController(jdbc);
+        var error = assertThrows(ResponseStatusException.class, () ->
+                controller.adjust(alice, new AccountSafeToSpendController.AdjustmentRequest(
+                        "invalid", BigDecimal.ZERO)));
+        assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
+        verify(jdbc, never()).update(anyString(), any(Object[].class));
+    }
+
 }
