@@ -1,5 +1,5 @@
 import { SignIn, UserButton, useAuth } from "@clerk/react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AuthenticatedDashboard from "./AuthenticatedDashboard.jsx";
 
 const API = import.meta.env.VITE_SPENDLY_API_URL || "http://localhost:8080";
@@ -7,42 +7,80 @@ const missingProductionApi = import.meta.env.PROD && !import.meta.env.VITE_SPEND
 
 export default function AuthGate() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
-  const [status, setStatus] = useState("");
   const [backendReady, setBackendReady] = useState(false);
-  const checkStaging = async () => {
-    if (missingProductionApi) { setStatus("Spendly API URL is not configured for this deployment."); return; }
-    setStatus("Checking secure backend…");
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Missing session token");
-      const response = await fetch(API.replace(/\/$/, "") + "/api/planner", {
-        headers: { Authorization: "Bearer " + token }
-      });
-      if (response.ok) { setBackendReady(true); setStatus(""); }
-      else setStatus("Backend returned HTTP " + response.status);
-    } catch (error) {
-      setStatus("Connection failed: " + error.message);
+  const [status, setStatus] = useState("");
+  const [retry, setRetry] = useState(0);
+
+  // Restore the session automatically. A successful Clerk sign-in should not
+  // require a page refresh or an additional "Connect securely" button click.
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      return;
     }
-  };
+
+    let active = true;
+    setBackendReady(false);
+    setStatus("");
+
+    async function verifySession() {
+      if (missingProductionApi) {
+        if (active) setStatus("Spendly API URL is not configured.");
+        return;
+      }
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Your session isn't ready. Please retry.");
+        const response = await fetch(API.replace(/\/$/, "") + "/api/planner", {
+          headers: { Authorization: "Bearer " + token },
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Secure connection failed (HTTP " + response.status + ").");
+        if (active) setBackendReady(true);
+      } catch (error) {
+        if (active) setStatus(error.message || "Unable to connect. Please retry.");
+      }
+    }
+
+    verifySession();
+    return () => { active = false; };
+  }, [isLoaded, isSignedIn, getToken, retry]);
+
+  const retryConnection = useCallback(() => setRetry(value => value + 1), []);
+
   if (!isLoaded) return <main className="finance-page"><h2>Loading Spendly…</h2></main>;
-  if (!isSignedIn) return <main style={{minHeight:"100vh",display:"grid",placeItems:"center",padding:24}}>
-    <section style={{display:"grid",gap:20,justifyItems:"center"}}>
-      <h1>Spendly</h1><p>Sign in to your account.</p>
-      <SignIn routing="hash" fallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />
-    </section>
-  </main>;
+
+  if (!isSignedIn) {
+    return <main style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 15% 10%, #34215d 0%, #130d24 45%, #090713 100%)", color: "#fff", display: "grid", placeItems: "center", padding: 24 }}>
+      <section style={{ width: "100%", maxWidth: 440, display: "grid", gap: 20, justifyItems: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <h1 style={{ fontSize: 46, fontWeight: 800, letterSpacing: "-0.06em", margin: 0 }}>Spendly<span style={{ color: "#b89cff" }}>.</span></h1>
+          <p style={{ color: "#cbbfe7", marginTop: 8 }}>Your money, your way.</p>
+        </div>
+        <SignIn
+          routing="hash"
+          forceRedirectUrl="/"
+          signUpForceRedirectUrl="/"
+          appearance={{ variables: { colorPrimary: "#7955e8", borderRadius: "12px" } }}
+        />
+        <p style={{ color: "#a79dbf", fontSize: 12, textAlign: "center" }}>Your finances stay private to your account.</p>
+      </section>
+    </main>;
+  }
+
   if (backendReady) return <AuthenticatedDashboard getToken={getToken} />;
-  return <main style={{minHeight:"100vh",padding:32,maxWidth:760,margin:"auto"}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-      <h1>Spendly</h1><UserButton />
-    </div>
-    <section className="finance-panel">
-      <span className="finance-kicker">ACCOUNT SECURITY</span>
-      <h2>You're signed in</h2>
-      <p>Clerk sign-in is active. Your financial dashboard remains locked until the backend validates your identity.</p>
-      <p>Only your account's financial information can be accessed with your authenticated session.</p>
-      <button type="button" className="finance-add" onClick={checkStaging}>Connect securely</button>
-      {status && <p role="status">{status}</p>}
+
+  return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#120d20", color: "white" }}>
+    <section className="finance-panel" style={{ width: "100%", maxWidth: 440, textAlign: "center" }}>
+      <h1 style={{ marginBottom: 12 }}>Spendly<span style={{ color: "#b89cff" }}>.</span></h1>
+      <UserButton />
+      {status ? <>
+        <h2>We couldn't connect your account.</h2>
+        <p role="alert">{status}</p>
+        <button type="button" className="finance-add" onClick={retryConnection}>Try again</button>
+      </> : <>
+        <h2>Welcome back</h2>
+        <p role="status">Connecting to your private dashboard…</p>
+      </>}
     </section>
   </main>;
 }
