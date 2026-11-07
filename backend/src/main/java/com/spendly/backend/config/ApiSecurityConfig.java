@@ -23,6 +23,8 @@ import java.util.List;
  */
 @Configuration
 public class ApiSecurityConfig {
+    @Value("${SPENDLY_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175,https://spendly-two-beige.vercel.app}")
+    private String allowedOrigins;
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
         return http
@@ -40,8 +42,7 @@ public class ApiSecurityConfig {
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource(
-            @Value("${SPENDLY_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175,https://spendly-two-beige.vercel.app}") String allowedOrigins) {
+    CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim).filter(origin -> !origin.isEmpty()).toList());
