@@ -1695,3 +1695,7 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
  .spendly-transaction { gap:9px; }
  .spendly-transaction-icon { width:34px; height:34px; flex-basis:34px; }
 }
+
+/* Financial status colors on both purple Safe-to-Spend heroes. */
+.spendly-restored .safe-fintech-hero .amount.balance-positive { color: #a5f3c1 !important; }
+.spendly-restored .safe-fintech-hero .amount.balance-negative { color: #ff9aa5 !important; }
