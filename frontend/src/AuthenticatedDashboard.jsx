@@ -14,6 +14,12 @@ export default function AuthenticatedDashboard({ getToken }) {
   const [transactions, setTransactions] = useState([]);
   const [balance, setBalance] = useState(null);
   const [history, setHistory] = useState([]);
+  const [adjustments, setAdjustments] = useState([]);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addAmount, setAddAmount] = useState("");
+  const [adjustmentId, setAdjustmentId] = useState(() => "adj-" + crypto.randomUUID());
+  const [adjustmentBusy, setAdjustmentBusy] = useState(false);
+  const [adjustmentMessage, setAdjustmentMessage] = useState("");
   const [page, setPage] = useState("dashboard");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,16 +45,18 @@ export default function AuthenticatedDashboard({ getToken }) {
   }, [getToken]);
 
   const refresh = useCallback(async () => {
-    const [p,b,h,t] = await Promise.all([
+    const [p,b,h,t,a] = await Promise.all([
       request("/api/planner"),
       request("/api/account/safe-to-spend"),
       request("/api/account/safe-to-spend/paychecks"),
-      request("/api/account/gmail/transactions")
+      request("/api/account/gmail/transactions"),
+      request("/api/account/safe-to-spend/adjustments")
     ]);
     setPlanner(p);
     setBalance(b);
     setHistory(Array.isArray(h) ? h : []);
     setTransactions(Array.isArray(t) ? t : []);
+    setAdjustments(Array.isArray(a) ? a : []);
   }, [request]);
 
   useEffect(() => {
@@ -162,6 +170,29 @@ export default function AuthenticatedDashboard({ getToken }) {
       setStatus("Paycheck saved. Goal progress updated.");
     } catch(e) { setStatus(e.message + " If the paycheck was credited, retry with the same form to finish recording goal progress."); }
     finally { setBusy(false); }
+  };
+
+  const submitAdjustment = async event => {
+    event.preventDefault();
+    if (!balance) { setAdjustmentMessage("Submit a paycheck before adjusting money."); return; }
+    const normalized = addAmount.trim();
+    const amount = Number(normalized);
+    if (!/^-?\d+(\.\d{1,2})?$/.test(normalized) || !Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 9999999999.99) {
+      setAdjustmentMessage("Enter a nonzero amount with at most two decimals."); return;
+    }
+    setAdjustmentBusy(true); setAdjustmentMessage("");
+    try {
+      await request("/api/account/safe-to-spend/adjustments", {
+        method:"POST", body:JSON.stringify({requestId:adjustmentId, amount})
+      });
+      await refresh();
+      setAdjustmentMessage((amount > 0 ? "+" : "−") + money(Math.abs(amount)) + " adjustment saved.");
+      setAddAmount("");
+      setAdjustmentId("adj-" + crypto.randomUUID());
+      setShowAddMoney(false);
+    } catch (error) {
+      setAdjustmentMessage(error.message + " If the request succeeded, retry without changing the amount to avoid duplicating it.");
+    } finally { setAdjustmentBusy(false); }
   };
 
   const saveGoal = async id => {
@@ -291,7 +322,22 @@ export default function AuthenticatedDashboard({ getToken }) {
             <p className="safe-subtitle">{balance ? money(balance.allocation)+" allocated − "+money(balance.countedSpending)+" spent" : "Submit a paycheck to begin tracking"}</p>
             {balance && <p className="safe-subtitle">Tracking since {dateLabel(balance.startDate)}</p>}
           </section>
+          {balance && <div className="safe-quick-actions">
+            <button type="button" disabled={adjustmentBusy} onClick={()=>{setShowAddMoney(v=>!v);setAdjustmentMessage("");}}>+ Add Money</button>
+          </div>}
+          {showAddMoney && balance && <form className="budget-card" onSubmit={submitAdjustment}>
+            <div className="section-heading"><div><p className="eyebrow">ADJUST MONEY</p><h2>Adjust your spendable budget</h2></div></div>
+            <label>Amount to adjust
+              <div className="money-input"><span>$</span>
+                <input type="number" step="0.01" placeholder="100.00 or -100.00" value={addAmount} onChange={e=>setAddAmount(e.target.value)} required />
+              </div>
+            </label>
+            <p className="date-explanation">Current allocation: {money(balance.allocation)}. Your tracking start date stays the same.</p>
+            <button className="save-button" type="submit" disabled={adjustmentBusy}>{adjustmentBusy?"Saving…":"Save adjustment"}</button>
+            <button className="edit-button" type="button" disabled={adjustmentBusy} onClick={()=>{setShowAddMoney(false);setAdjustmentMessage("");}}>Cancel</button>
+          </form>}
         </div>
+        {adjustmentMessage && <p role="status" className="spendly-sync-message">{adjustmentMessage}</p>
         <section className="gmail-compact spendly-gmail-connection">
           <div className="gmail-compact-info"><span className="gmail-status-dot" /><span>{gmailConnected === true ? "Gmail connected" : gmailConnected === false ? "Connect Gmail to sync purchases" : "Checking Gmail connection…"}</span></div>
           <div className="spendly-gmail-actions">
@@ -315,6 +361,16 @@ export default function AuthenticatedDashboard({ getToken }) {
             <div className="spendly-transaction-right"><strong>{money(t.amount)}</strong><button type="button" disabled={gmailBusy} onClick={()=>updateTransaction(t,t.status === "DELETED")}>{t.status==="DELETED"?"Restore":"Exclude"}</button></div>
           </div>) : <p>No transactions synced yet. Connect Gmail and sync to import recognized alerts.</p>}
         </section>
+        {adjustments.length > 0 && <section className="finance-panel spendly-adjustment-history">
+          <span className="finance-kicker">MONEY ADJUSTMENTS</span>
+          <h3>Adjustment history</h3>
+          {adjustments.map(a=><div className="finance-category" key={a.id}>
+            <div className="finance-category-top">
+              <span>{dateLabel(a.createdAt)}</span>
+              <strong className={Number(a.amount)>=0?"positive-adjustment":"negative-adjustment"}>{Number(a.amount)>0?"+":""}{money(a.amount)}</strong>
+            </div>
+          </div>)}
+        </section>}
         {allocations.length>0 && <section className="finance-panel spendly-planned-allocations">
           <span className="finance-kicker">PLANNED ALLOCATIONS</span>
           {allocations.map(c=><div className="finance-category" key={c.id}><div className="finance-category-top"><span>{c.name}</span><strong>{money(c.amount)}</strong></div></div>)}
