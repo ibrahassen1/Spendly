@@ -255,7 +255,7 @@ export default function AuthenticatedDashboard({ getToken }) {
         <div className="safe-top-zone">
           <section className="safe-fintech-hero">
             <p className="label">SAFE TO SPEND</p>
-            <h2 className="amount">{balance ? money(balanceValue) : "—"}</h2>
+            <h2 className={"amount" + (balance ? (Number(balanceValue) > 0 ? " balance-positive" : Number(balanceValue) < 0 ? " balance-negative" : "") : "")}>{balance ? money(balanceValue) : "—"}</h2>
             <p className="safe-subtitle">{balance ? money(balance.allocation) + " allocated · " + money(balance.countedSpending) + " in purchases" : "Add a paycheck to start tracking"}</p>
             <div className="safe-hero-bars" aria-hidden="true">
               {[30,45,62,48,72,58,82,70,94,78,100,84].map((h,i)=><span key={i} style={{height:h+"%"}} />)}
@@ -318,7 +318,7 @@ export default function AuthenticatedDashboard({ getToken }) {
         <div className="safe-top-zone">
           <section className="safe-fintech-hero">
             <p className="label">AVAILABLE TO SPEND</p>
-            <h2 className="amount">{balance ? money(balanceValue) : "—"}</h2>
+            <h2 className={"amount" + (balance ? (Number(balanceValue) > 0 ? " balance-positive" : Number(balanceValue) < 0 ? " balance-negative" : "") : "")}>{balance ? money(balanceValue) : "—"}</h2>
             <p className="safe-subtitle">{balance ? money(balance.allocation)+" allocated − "+money(balance.countedSpending)+" spent" : "Submit a paycheck to begin tracking"}</p>
             {balance && <p className="safe-subtitle">Tracking since {dateLabel(balance.startDate)}</p>}
           </section>
