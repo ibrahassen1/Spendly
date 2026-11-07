@@ -43,6 +43,19 @@ public class AccountSafeToSpendController {
                 new ResponseStatusException(HttpStatus.NOT_FOUND,"No paycheck submitted"));
     }
 
+    /**
+     * Private-test onboarding: create an empty account ledger starting today.
+     * Idempotent: never reset balances or dates for returning accounts.
+     */
+    @PostMapping("/initialize")
+    @Transactional
+    public Balance initialize(@AuthenticationPrincipal Jwt jwt) {
+        String id = user(jwt);
+        jdbc.update("INSERT INTO user_safe_balances(user_id,allocation,start_date) VALUES(?,?,?) " +
+            "ON CONFLICT(user_id) DO NOTHING", id, BigDecimal.ZERO, LocalDate.now());
+        return balance(id);
+    }
+
     @GetMapping
     public Balance get(@AuthenticationPrincipal Jwt jwt) { return balance(user(jwt)); }
 
