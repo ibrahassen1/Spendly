@@ -52,8 +52,11 @@ export default function AuthenticatedDashboard({ getToken }) {
       request("/api/account/gmail/transactions"),
       request("/api/account/safe-to-spend/adjustments")
     ]);
+    // New private-test accounts begin with $0 today; no fake paycheck needed.
+    // Initialize only if the authenticated account has no ledger yet.
+    const currentBalance = b ?? await request("/api/account/safe-to-spend/initialize", { method: "POST" });
     setPlanner(p);
-    setBalance(b);
+    setBalance(currentBalance);
     setHistory(Array.isArray(h) ? h : []);
     setTransactions(Array.isArray(t) ? t : []);
     setAdjustments(Array.isArray(a) ? a : []);
@@ -256,7 +259,7 @@ export default function AuthenticatedDashboard({ getToken }) {
           <section className="safe-fintech-hero">
             <p className="label">SAFE TO SPEND</p>
             <h2 className={"amount" + (balance ? (Number(balanceValue) > 0 ? " balance-positive" : Number(balanceValue) < 0 ? " balance-negative" : "") : "")}>{balance ? money(balanceValue) : "—"}</h2>
-            <p className="safe-subtitle">{balance ? money(balance.allocation) + " allocated · " + money(balance.countedSpending) + " in purchases" : "Add a paycheck to start tracking"}</p>
+            <p className="safe-subtitle">{balance ? money(balance.allocation) + " allocated · " + money(balance.countedSpending) + " in purchases" : "Preparing your $0 balance…"}</p>
             <div className="safe-hero-bars" aria-hidden="true">
               {[30,45,62,48,72,58,82,70,94,78,100,84].map((h,i)=><span key={i} style={{height:h+"%"}} />)}
             </div>
