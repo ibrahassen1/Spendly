@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { UserButton } from "@clerk/react";
 import "./App.css";
+import AllocationStudio from "./AllocationStudio.jsx";
 
 const API = import.meta.env.VITE_SPENDLY_API_URL || "http://localhost:8080";
 const money = value => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD"}).format(Number(value)||0);
@@ -250,71 +251,10 @@ export default function AuthenticatedDashboard({ getToken }) {
       </header>
       {status && <p role="status" className="gmail-toast">{status}</p>}
 
-      {page==="dashboard" && <>
-        <section className="finance-heading">
-          <p className="eyebrow">YOUR FINANCIAL OVERVIEW</p><h2>Dashboard</h2>
-          <p>Make your money make sense.</p>
-        </section>
-        <div className="safe-top-zone">
-          <section className="safe-fintech-hero">
-            <p className="label">SAFE TO SPEND</p>
-            <h2 className={"amount" + (balance ? (Number(balanceValue) > 0 ? " balance-positive" : Number(balanceValue) < 0 ? " balance-negative" : "") : "")}>{balance ? money(balanceValue) : "—"}</h2>
-            <p className="safe-subtitle">{balance ? money(balance.allocation) + " allocated · " + money(balance.countedSpending) + " in purchases" : "Preparing your $0 balance…"}</p>
-            <div className="safe-hero-bars" aria-hidden="true">
-              {[30,45,62,48,72,58,82,70,94,78,100,84].map((h,i)=><span key={i} style={{height:h+"%"}} />)}
-            </div>
-          </section>
-          <div className="safe-quick-actions">
-            <button type="button" onClick={()=>setPage("safe")}>View spending</button>
-            <button type="button" onClick={()=>setPage("goals")}>Your goals</button>
-          </div>
-        </div>
-        <section className="finance-panel spendly-paycheck-card">
-          <span className="finance-kicker">NEW PAYCHECK</span>
-          <h3>Add money to your plan</h3>
-          <p>Save a paycheck and choose how much goes toward Safe to Spend.</p>
-          <form noValidate onSubmit={submitPaycheck} className="spendly-paycheck-form">
-            <label>Paycheck amount ($)<input required type="number" min="0.01" step="0.01" value={paycheck} onChange={e=>setPaycheck(e.target.value)} placeholder="Enter paycheck" /></label>
-            <label>Date received<input required type="date" max={today()} value={paycheckDate} onChange={e=>setPaycheckDate(e.target.value)} /></label>
-            <label className="spendly-check-row"><input type="checkbox" checked={useRecommended} onChange={e=>setUseRecommended(e.target.checked)}/> Use recommended split (70% spending / 20% savings / 10% investments)</label>
-            {!useRecommended && <label>Safe-to-Spend portion ($)<input required type="number" min="0" step="0.01" value={safeCredit} onChange={e=>setSafeCredit(e.target.value)} placeholder="Amount available to spend" /></label>}
-            {useRecommended && paycheck && <div className="spendly-split-preview">
-              <div><span>Safe to Spend</span><strong>{money(Math.round(Number(paycheck||0)*70)/100)}</strong></div>
-              <div><span>Savings</span><strong>{money(Math.round(Number(paycheck||0)*20)/100)}</strong></div>
-              <div><span>Investments</span><strong>{money((Math.round(Number(paycheck||0)*100)-Math.round(Number(paycheck||0)*70)-Math.round(Number(paycheck||0)*20))/100)}</strong></div>
-            </div>}
-            <button className="coach-primary" type="submit" disabled={busy}>{busy?"Saving…":"Save paycheck"}</button>
-          </form>
-        </section>
-        <section className="finance-panel spendly-history">
-          <span className="finance-kicker">PAYCHECK HISTORY</span>
-          <h3>Your recent paychecks</h3>
-          {history.length ? history.map(p=><div className="finance-category" key={p.periodId}>
-            <div className="finance-category-top"><span>{dateLabel(p.paycheckDate)}</span><strong>{money(p.paycheck)}</strong></div>
-            <p>{money(p.safeCredit)} added to Safe to Spend</p>
-          </div>) : <p>No paychecks yet.</p>}
-        </section>
-      </>}
-
-      {page==="goals" && <>
-        <div className="finance-heading"><p className="eyebrow">YOUR PROGRESS</p><h2>Financial Goals</h2><p>Little by little adds up.</p></div>
-        <section className="finance-panel">
-          {["savings","investments","expenses"].map(id=>{
-            const goal=goals[id]||{}, target=Number(goal.target)||0, saved=(Number(goal.allocatedCents)||0)/100;
-            const progress=target>0?Math.min(100,saved/target*100):0;
-            return <div key={id} className="spendly-goal">
-              <div className="finance-category-top"><h3>{id[0].toUpperCase()+id.slice(1)}</h3><strong>{Math.round(progress)}%</strong></div>
-              <p>{money(saved)} allocated of {money(target)} goal</p>
-              <progress value={progress} max="100" />
-              <div className="spendly-goal-controls">
-                <label>Goal target ($)<input type="number" min="0" step="0.01" value={goalTargets[id] ?? String(target)} onChange={e=>setGoalTargets(prev=>({...prev,[id]:e.target.value}))}/></label>
-                <button className="finance-add" type="button" disabled={goalSaving} onClick={()=>saveGoal(id)}>{goalSaving?"Saving…":"Save goal"}</button>
-              </div>
-            </div>;
-          })}
-          <p>Progress reflects allocations you've recorded, not transfers made at your bank.</p>
-        </section>
-      </>}
+      {(page==="dashboard" || page==="goals") && <AllocationStudio
+        page={page} planner={planner} request={request} refresh={refresh}
+        history={history} balance={balance}
+      />}
 
       {page==="safe" && <>
         <div className="finance-heading"><p className="eyebrow">YOUR SPENDING</p><h2>Safe to Spend</h2><p>Know what you can spend today.</p></div>
