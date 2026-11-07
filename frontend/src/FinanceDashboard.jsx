@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import SpendlyCoach from "./SpendlyCoach.jsx";
 
 const STORAGE_KEY = "spendly.finance-planner.v1";
+const GOAL_IDS = ["expenses", "investments", "savings"];
+const DEFAULT_GOALS = Object.fromEntries(GOAL_IDS.map(id => [id, { target: "", allocatedCents: 0 }]));
 const COLORS = ["#3ad5aa", "#d5b46d", "#699cf0", "#c68ee8", "#e68f7c", "#6fd0d9", "#b7bd73"];
 const INITIAL = [
   { id: "spend", name: "Safe to Spend", percent: 40 },
@@ -117,12 +120,16 @@ function FinanceTable({ title, entries, allocated, onAdd, onChange, onRemove }) 
   );
 }
 
-export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
+export default function FinanceDashboard({ safeToSpend, onBudgetSaved, view = "dashboard" }) {
   const [planner, setPlanner] = useState(loadPlanner);
   
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(planner)); }, [planner]);
   const [savingLive, setSavingLive] = useState(false);
+  const [savingPace, setSavingPace] = useState("moderate");
+  const [goalLedgerView, setGoalLedgerView] = useState(null);
+  const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [showSplit, setShowSplit] = useState(false);
   const [periodStart, setPeriodStart] = useState(() => new Date().toLocaleDateString("en-CA"));
   const period = planner.periods.find((p) => p.id === planner.selected) || planner.periods[0];
   const paycheck = cleanAmount(period?.paycheck);
@@ -145,8 +152,9 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       return;
     }
     const allocation = Math.round(categoryAmount("spend") * 100) / 100;
+    if (period.submitted) return;
     const confirmed = window.confirm(
-      "Update your LIVE Safe to Spend allocation to " + dollars(allocation) +
+      "Confirm paycheck? This REPLACES your existing live Safe to Spend allocation with " + dollars(allocation) +
       " starting " + periodStart + "? Existing Gmail purchases since that date will be counted by the backend. This replaces your current live budget allocation."
     );
     if (!confirmed) return;
@@ -161,53 +169,128 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
       if (!response.ok) throw new Error("The backend could not save the budget.");
       const updated = await response.json();
       if (onBudgetSaved) await onBudgetSaved(updated);
-      setSyncMessage("Live budget updated. Both tabs now use the same backend balance.");
+      const amounts = Object.fromEntries(GOAL_IDS.map(id => [id, Math.round(categoryAmount(id)*100)]));
+      setPlanner(previous => ({
+        ...previous,
+        periods: previous.periods.map(p => p.id === period.id ? {...p, submitted:true, submittedAt:new Date().toISOString(), paycheckDate:periodStart, goalRecorded:true, goalRecordedAt:new Date().toISOString(), goalAllocations:amounts} : p),
+        goals: {...previous.goals, ...Object.fromEntries(GOAL_IDS.map(id => [id, {...(previous.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents:(previous.goals?.[id]?.allocatedCents || 0)+amounts[id]}]))}
+      }));
+      setSyncMessage("Paycheck confirmed and Goals progress updated.");
     } catch (error) {
       setSyncMessage(error.message || "Unable to update live budget.");
     } finally {
       setSavingLive(false);
     }
   };
-  const exportData = () => {
-    const blob = new Blob([JSON.stringify(planner, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a"); link.href = url; link.download = "spendly-budget-backup.json"; link.click();
-    URL.revokeObjectURL(url);
+  // Recommendations are local planner suggestions only; production balance changes
+  // exclusively through the existing, confirmed saveLiveBudget API call.
+  const checksPerYear = { weekly: 52, biweekly: 26, semimonthly: 24, monthly: 12 }[planner.payFrequency || "biweekly"];
+  const goalMonths = Math.max(1, Number(planner.goalTimelineMonths) || 18);
+  const monthlyExpenses = entriesOf("expenses").reduce((sum, e) => sum + cleanAmount(e.planned), 0);
+  const expensesPerCheck = monthlyExpenses * 12 / checksPerYear;
+  const savingsTarget = cleanAmount(planner.goals?.savings?.target);
+  const investmentsTarget = cleanAmount(planner.goals?.investments?.target);
+  const savingsPerCheck = savingsTarget / (goalMonths * checksPerYear / 12);
+  const investmentsPerCheck = investmentsTarget / (goalMonths * checksPerYear / 12);
+  const recommendation = (() => {
+    if (paycheck <= 0 || expensesPerCheck > paycheck) return null;
+    const expenses = Math.min(100, Math.ceil(expensesPerCheck / paycheck * 100));
+    const remaining = 100 - expenses;
+    const goalPercent = (savingsTarget || investmentsTarget) ? Math.round(remaining * ({ slow: .35, moderate: .60, aggressive: .85 }[savingPace])) : 0;
+    const totalGoal = savingsPerCheck + investmentsPerCheck;
+    const savings = savingsTarget ? (investmentsTarget && totalGoal ? Math.round(goalPercent * savingsPerCheck / totalGoal) : goalPercent) : 0;
+    const investments = investmentsTarget ? goalPercent - savings : 0;
+    return { expenses, savings, investments, spend: 100 - expenses - savings - investments, feasible: totalGoal <= paycheck * goalPercent / 100 };
+  })();
+  const applyRecommendation = () => {
+    if (!recommendation) return;
+    setPlanner((previous) => {
+      const categories = previous.categories.map(c => ({ ...c, percent: Object.prototype.hasOwnProperty.call(recommendation,c.id) ? recommendation[c.id] : 0 }));
+      return { ...previous, categories };
+    });
+    setRecommendationDismissed(true);
   };
   const customCategories = useMemo(() => categories.filter((c) => !["spend", "expenses", "investments", "savings"].includes(c.id)), [categories]);
   return (
     <section className="finance-page">
       <div className="finance-heading">
-        <p className="eyebrow">YOUR FINANCIAL OVERVIEW</p>
-        <h2>Dashboard</h2>
-        <p>Plan your paycheck and see where every dollar is going.</p>
+        <p className="eyebrow">{view === "goals" ? "YOUR PROGRESS" : "YOUR FINANCIAL OVERVIEW"}</p>
+        <h2>{view === "goals" ? "Financial Goals" : "Dashboard"}</h2>
+        <p>{view === "goals" ? "Keep your savings, investment, and expense targets in one place." : "Plan your paycheck and see where every dollar is going."}</p>
       </div>
-      <div className="finance-toolbar">
-        <label>Pay period
-          <select value={period.id} onChange={(e) => setPlanner((p) => ({ ...p, selected: e.target.value }))}>
-            {planner.periods.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      {view === "dashboard" && <>
+      <SpendlyCoach
+        goals={{ ...planner.goals, timelineMonths: planner.goalTimelineMonths }}
+        onSave={({ savings, investments, months }) => {
+          setPlanner(previous => ({
+            ...previous,
+            goalTimelineMonths: months,
+            goals: {
+              ...previous.goals,
+              savings: { ...previous.goals?.savings, target: savings },
+              investments: { ...previous.goals?.investments, target: investments },
+            },
+          }));
+          setRecommendationDismissed(false);
+        }}
+      />
+      <section className="finance-panel" style={{marginBottom:20}}>
+        <span className="finance-kicker">NEW PAYCHECK</span>
+        <h3>{period.submitted ? "Paycheck confirmed" : "Add your paycheck"}</h3>
+        {period.submitted ? <>
+          <p>{dollars(paycheck)} · {period.paycheckDate || periodStart}</p>
+          <button type="button" className="coach-primary" onClick={() => {
+            const id=makeId();
+            setPlanner(p=>({...p,selected:id,periods:[...p.periods,{id,name:"Paycheck "+(p.periods.length+1),paycheck:"",entries:[]}]}));
+            setShowSplit(false); setRecommendationDismissed(false); setSyncMessage("");
+            setPeriodStart(new Date().toLocaleDateString("en-CA"));
+          }}>+ Add another paycheck</button>
+        </> : <>
+          <div className="finance-toolbar">
+            <label>Take-home paycheck ($)
+              <input type="number" min="0.01" step="0.01" value={period.paycheck} placeholder="Enter paycheck"
+                onChange={e=>{updatePeriod({paycheck:e.target.value});setShowSplit(false);}} />
+            </label>
+            <label>Date received
+              <input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)} />
+            </label>
+          </div>
+          {!showSplit && <button type="button" className="coach-primary" disabled={paycheck<=0 || !periodStart}
+            onClick={()=>setShowSplit(true)}>Continue to recommended split</button>}
+        </>}
+        {syncMessage && <p role="status">{syncMessage}</p>}
+      </section>
+      {showSplit && !period.submitted && <section className="finance-panel" style={{marginBottom:20}}>
+        <span className="finance-kicker">RECOMMENDED SPLIT</span>
+        <h3>Here's how to divide {dollars(paycheck)}</h3>
+        <label>Pay schedule
+          <select value={planner.payFrequency || "biweekly"} onChange={e=>setPlanner(p=>({...p,payFrequency:e.target.value}))}>
+            <option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option>
+            <option value="semimonthly">Twice a month</option><option value="monthly">Monthly</option>
           </select>
         </label>
-        <button type="button" className="finance-add" onClick={() => {
-          const id = makeId();
-          setPlanner((p) => ({ ...p, selected: id, periods: [...p.periods, { id, name: "Paycheck " + (p.periods.length + 1), paycheck: "", entries: [] }] }));
-        }}>+ New period</button>
-        <button type="button" className="finance-add" onClick={exportData}>Export backup</button>
-      </div>
-      <div className="finance-toolbar">
-        <label>Period name <input value={period.name} onChange={(e) => updatePeriod({ name: e.target.value })} /></label>
-        <label>Paycheck amount ($) — enter your take-home pay here <input type="number" min="0" step="0.01" placeholder="Enter paycheck" value={period.paycheck} onChange={(e) => updatePeriod({ paycheck: e.target.value })} /></label>
-      </div>
-      <div className="finance-live-sync">
-        <div>
-          <span className="finance-kicker">SHARED LIVE BUDGET</span>
-          <h3>Sync this paycheck to Safe to Spend</h3>
-          <p>Sets the live spending allocation to {dollars(categoryAmount("spend"))}. Gmail transactions since the selected date are subtracted by your existing backend. The other categories remain in the Dashboard planner.</p>
-          <label>Budget start date <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></label>
+        <p>How fast do you want to reach your goals?</p>
+        <div className="finance-toolbar">
+          {["slow","moderate","aggressive"].map(pace=><button type="button" className="finance-add" key={pace}
+            aria-pressed={savingPace===pace} onClick={()=>setSavingPace(pace)}>{pace}</button>)}
         </div>
-        <button type="button" className="finance-add" disabled={savingLive || !valid || paycheck <= 0} onClick={saveLiveBudget}>{savingLive ? "Updating…" : "Update live Safe to Spend"}</button>
-        {syncMessage && <p role="status">{syncMessage}</p>}
-      </div>
+        {recommendation ? <>
+          {["spend","expenses","savings","investments"].filter(id=>recommendation[id]>0||id==="spend").map(id=><p key={id}>
+            {({spend:"Safe to Spend",expenses:"Recurring Expenses",savings:"Savings",investments:"Investments"})[id]}:
+            <strong> {recommendation[id]}% · {dollars(paycheck*recommendation[id]/100)}</strong>
+          </p>)}
+          {!recommendation.feasible && <p className="finance-warning">Your goals may need a longer timeline.</p>}
+          <button type="button" className="finance-add" onClick={applyRecommendation}>Apply recommended split</button>
+        </> : <p>Recurring expenses exceed this paycheck.</p>}
+      </section>}
+      {showSplit && !period.submitted && <section className="finance-panel" style={{marginBottom:20}}>
+        <h3>Confirm paycheck</h3>
+        <p>Review and adjust your allocations below first.</p>
+        <p className="finance-warning">The current backend REPLACES your live Safe to Spend allocation; it does not add this paycheck to your existing balance.</p>
+        <button type="button" className="coach-primary" disabled={savingLive||!valid||paycheck<=0}
+          onClick={saveLiveBudget}>{savingLive ? "Confirming…" : "Confirm paycheck"}</button>
+      </section>}
+      {(showSplit || period.submitted) && <>
       <div className="finance-panels">
         <article className="finance-panel">
           <span className="finance-kicker">PAYCHECK ALLOCATION</span>
@@ -263,6 +346,52 @@ export default function FinanceDashboard({ safeToSpend, onBudgetSaved }) {
         <p>{dollars(categoryAmount("spend"))} spending allocation − {dollars(spent)} manually recorded discretionary purchases.</p>
         <p>Live Safe to Spend (including Gmail transactions): {safeToSpend ? dollars(safeToSpend.safeToSpend) : "Not loaded"}. Use “Update live Safe to Spend” above to sync your allocation.</p>
       </article>
+      </>}
+      </>}
+      {view === "goals" && <article className="finance-panel" style={{ marginBottom: 20 }}>
+        <span className="finance-kicker">FINANCIAL GOALS</span>
+        <h3>{goalLedgerView ? "Allocation history" : "Track your progress"}</h3>
+        <div className="finance-toolbar" style={{ margin: "12px 0" }}>
+          <button type="button" className="finance-add" onClick={() => setGoalLedgerView(null)}>Progress</button>
+          {GOAL_IDS.map(id => <button type="button" key={id} className="finance-add" onClick={() => setGoalLedgerView(id)}>{categories.find(c => c.id === id)?.name || id} ledger</button>)}
+        </div>
+        {goalLedgerView ? <>
+          <p>Paychecks you explicitly recorded toward {goalLedgerView}. This history is stored in this browser.</p>
+          <div style={{ overflowX: "auto" }}><table style={{ width: "100%", textAlign: "left" }}>
+            <thead><tr><th>Paycheck</th><th>Recorded</th><th>Allocated</th></tr></thead>
+            <tbody>{planner.periods.filter(p => p.goalRecorded).map(p => <tr key={p.id}>
+              <td>{p.name}</td><td>{p.goalRecordedAt ? new Date(p.goalRecordedAt).toLocaleDateString() : "Recorded"}</td>
+              <td>{dollars((p.goalAllocations?.[goalLedgerView] || 0) / 100)}</td>
+            </tr>)}</tbody>
+          </table></div>
+          {!planner.periods.some(p => p.goalRecorded) && <p>No allocations recorded yet.</p>}
+        </> : <>
+          <p>Progress reflects paycheck allocations you record, not verified bank transfers or investments. Goals do not change your live Safe-to-Spend balance.</p>
+          {GOAL_IDS.map(id => {
+            const goal = planner.goals?.[id] || DEFAULT_GOALS[id];
+            const target = cleanAmount(goal.target);
+            const allocated = (goal.allocatedCents || 0) / 100;
+            const progress = target > 0 ? Math.min(100, allocated / target * 100) : 0;
+            const label = categories.find(c => c.id === id)?.name || id;
+            return <div key={id} style={{ marginTop: 22 }}>
+              <div className="finance-category-top"><strong>{label}</strong><span>{target > 0 ? progress.toFixed(0) + "%" : "Set a goal"}</span></div>
+              <div role="progressbar" aria-label={label + " goal progress"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}
+                style={{ height: 12, background: "#273541", borderRadius: 12, overflow: "hidden", margin: "10px 0" }}>
+                <div style={{ height: "100%", width: progress + "%", background: id === "expenses" ? "#d5b46d" : id === "investments" ? "#699cf0" : "#3ad5aa" }} />
+              </div>
+              <p>{dollars(allocated)} allocated of {target > 0 ? dollars(target) : "no target yet"}</p>
+              <div className="finance-toolbar">
+                <label>{label} goal ($) <input type="number" min="0" step="0.01" value={goal.target} placeholder="Enter goal"
+                  onChange={e => setPlanner(p => ({ ...p, goals: { ...p.goals, [id]: { ...(p.goals?.[id] || DEFAULT_GOALS[id]), target: e.target.value } } }))} /></label>
+                <button type="button" className="finance-add" onClick={() => {
+                  if (!window.confirm("Reset " + label + " progress? This does not change live balances or delete allocation history.")) return;
+                  setPlanner(p => ({ ...p, goals: { ...p.goals, [id]: { ...(p.goals?.[id] || DEFAULT_GOALS[id]), allocatedCents: 0 } } }));
+                }}>Reset progress</button>
+              </div>
+            </div>;
+          })}
+        </>}
+      </article>}
       <p className="finance-local-note">Planner categories, entries, and pay periods are stored in this browser only. The live budget changes only when you click Update live Safe to Spend. Manually entered purchases are not synced to Gmail transactions.</p>
     </section>
   );

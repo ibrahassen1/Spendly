@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/spendly
-    username: spendly
-    password: spendly_dev
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/spendly}
+    username: ${SPRING_DATASOURCE_USERNAME:spendly}
+    password: ${SPRING_DATASOURCE_PASSWORD:spendly_dev}
 
   jpa:
     hibernate:
@@ -13,9 +13,15 @@ spring:
     enabled: true
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 google:
   client-id: ${GOOGLE_CLIENT_ID}
   client-secret: ${GOOGLE_CLIENT_SECRET}
-  redirect-uri: http://localhost:8080/api/gmail/oauth/callback
+  redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/account/gmail/callback}
+
+spendly:
+  auth:
+    issuer-uri: ${SPENDLY_AUTH_ISSUER_URI}
+  gmail:
+    token-encryption-key: ${SPENDLY_GMAIL_TOKEN_ENCRYPTION_KEY}

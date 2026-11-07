@@ -1,0 +1,61 @@
+package com.spendly.backend.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoders;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Feature-branch security checkpoint. Only user-scoped planner routes are enabled.
+ * All legacy shared financial endpoints are blocked, including Gmail.
+ * Do not deploy to production until account-scoped balance and transaction
+ * storage is implemented and tested.
+ */
+@Configuration
+public class ApiSecurityConfig {
+    @Value("${SPENDLY_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175,https://spendly-two-beige.vercel.app}")
+    private String allowedOrigins;
+    @Bean
+    SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
+        return http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/account/gmail/callback").permitAll()
+                .requestMatchers("/api/account/gmail/sync", "/api/account/gmail/transactions", "/api/account/gmail/transactions/**").authenticated()
+                .requestMatchers("/api/planner", "/api/account/safe-to-spend", "/api/account/safe-to-spend/paychecks", "/api/account/safe-to-spend/adjustments", "/api/account/gmail/connect", "/api/account/gmail/status", "/api/account/gmail/connection").authenticated()
+                .requestMatchers("/api/**").denyAll()
+                .anyRequest().permitAll())
+            .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
+            .build();
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim).filter(origin -> !origin.isEmpty()).toList());
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setAllowCredentials(false);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", config);
+        return source;
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder(@Value("${spendly.auth.issuer-uri}") String issuerUri) {
+        return JwtDecoders.fromIssuerLocation(issuerUri);
+    }
+}

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.jdbc.core.JdbcTemplate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -101,6 +102,7 @@ public class GmailService {
 
     private final EmailAlertTransactionRepository emailAlertTransactionRepository;
     private final GmailCredentialRepository gmailCredentialRepository;
+    private final JdbcTemplate accountJdbc;
     private final SpendingAllocationRepository spendingAllocationRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -114,6 +116,7 @@ public class GmailService {
             @Value("${google.redirect-uri}") String redirectUri,
             EmailAlertTransactionRepository emailAlertTransactionRepository,
             GmailCredentialRepository gmailCredentialRepository,
+            JdbcTemplate accountJdbc,
             SpendingAllocationRepository spendingAllocationRepository
     ) {
         this.clientId = clientId;
@@ -121,6 +124,7 @@ public class GmailService {
         this.redirectUri = redirectUri;
         this.emailAlertTransactionRepository = emailAlertTransactionRepository;
         this.gmailCredentialRepository = gmailCredentialRepository;
+        this.accountJdbc = accountJdbc;
         this.spendingAllocationRepository = spendingAllocationRepository;
     }
 
@@ -367,6 +371,60 @@ public class GmailService {
                 totalReduced,
                 newTransactions
         );
+    }
+
+
+    /**
+     * Account-specific adapter around the existing Gmail message parser.
+     * Legacy refreshBankAlerts and all bank parsing rules remain unchanged.
+     */
+    public GmailRefreshResponse refreshBankAlertsForUser(
+            String userId, String refreshToken, LocalDate startDate)
+            throws IOException, InterruptedException {
+        String accessToken = getFreshAccessToken(refreshToken);
+        String after = startDate.minusDays(1)
+                .format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        String query = "{from:" + WELLS_FARGO_SENDER + " from:"
+                + DISCOVER_SENDER + "} after:" + after;
+        String url = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+                + "?maxResults=100&q=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
+        HttpResponse<String> response = httpClient.send(
+                authenticatedGet(url, accessToken), HttpResponse.BodyHandlers.ofString());
+        ensureSuccessful(response, "Gmail message search failed");
+        JsonNode messages = objectMapper.readTree(response.body()).path("messages");
+        if (!messages.isArray() || messages.isEmpty())
+            return new GmailRefreshResponse(0, BigDecimal.ZERO, List.of());
+
+        List<GmailAlertResponse> imported = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+        for (JsonNode node : messages) {
+            String messageId = node.path("id").asText("");
+            if (messageId.isBlank()) continue;
+            Integer found = accountJdbc.queryForObject(
+                    "SELECT COUNT(*) FROM user_email_alert_transactions WHERE user_id=? AND gmail_message_id=?",
+                    Integer.class, userId, messageId);
+            if (found != null && found > 0) continue;
+            try {
+                GmailAlertResponse alert = fetchAndParseMessage(messageId, accessToken);
+                List<Long> ids = accountJdbc.query(
+                    "INSERT INTO user_email_alert_transactions " +
+                    "(user_id,gmail_message_id,merchant,amount,card_last4,transaction_date,transaction_time,source_bank,status) " +
+                    "VALUES (?,?,?,?,?,?,?,?, 'TEMPORARY') " +
+                    "ON CONFLICT (user_id,gmail_message_id) DO NOTHING RETURNING id",
+                    (rs, row) -> rs.getLong(1),
+                    userId, messageId, alert.merchant(), alert.amount(), alert.cardLast4(),
+                    alert.date(), alert.transactionTime(), alert.sourceBank());
+                if (ids.isEmpty()) continue;
+                imported.add(new GmailAlertResponse(ids.get(0), alert.merchant(),
+                        alert.amount(), alert.cardLast4(), alert.date(),
+                        alert.transactionTime(), alert.sourceBank()));
+                total = total.add(alert.amount());
+            } catch (RuntimeException ex) {
+                // Preserve the original behavior: one unrecognized alert cannot stop a sync.
+                System.err.println("Failed to parse Gmail message " + messageId + ": " + ex.getMessage());
+            }
+        }
+        return new GmailRefreshResponse(imported.size(), total, imported);
     }
 
     private GmailAlertResponse fetchAndParseMessage(
@@ -937,12 +995,17 @@ public class GmailService {
                                 )
                         );
 
+        return getFreshAccessToken(credential.getRefreshToken());
+    }
+
+    private String getFreshAccessToken(String refreshToken)
+            throws IOException, InterruptedException {
         String requestBody =
                 "client_id=" + encode(clientId)
                         + "&client_secret=" + encode(clientSecret)
                         + "&refresh_token="
                         + encode(
-                                credential.getRefreshToken()
+                                refreshToken
                         )
                         + "&grant_type=refresh_token";
 
