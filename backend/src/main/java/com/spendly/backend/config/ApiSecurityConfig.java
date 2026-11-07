@@ -12,6 +12,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -39,10 +40,11 @@ public class ApiSecurityConfig {
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(
+            @Value("${SPENDLY_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175,https://spendly-two-beige.vercel.app}") String allowedOrigins) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "https://spendly-*.vercel.app"));
-        config.setAllowedOrigins(List.of("https://spendly-two-beige.vercel.app"));
+        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim).filter(origin -> !origin.isEmpty()).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setAllowCredentials(false);
