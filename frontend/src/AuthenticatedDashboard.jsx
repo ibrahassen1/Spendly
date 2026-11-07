@@ -337,7 +337,7 @@ export default function AuthenticatedDashboard({ getToken }) {
             <button className="edit-button" type="button" disabled={adjustmentBusy} onClick={()=>{setShowAddMoney(false);setAdjustmentMessage("");}}>Cancel</button>
           </form>}
         </div>
-        {adjustmentMessage && <p role="status" className="spendly-sync-message">{adjustmentMessage}</p>
+        {adjustmentMessage && <p role="status" className="spendly-sync-message">{adjustmentMessage}</p>}
         <section className="gmail-compact spendly-gmail-connection">
           <div className="gmail-compact-info"><span className="gmail-status-dot" /><span>{gmailConnected === true ? "Gmail connected" : gmailConnected === false ? "Connect Gmail to sync purchases" : "Checking Gmail connection…"}</span></div>
           <div className="spendly-gmail-actions">
