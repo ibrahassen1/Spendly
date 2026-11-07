@@ -53,6 +53,53 @@ public class AccountSafeToSpendController {
             user(jwt));
     }
 
+    public record AdjustmentRequest(String requestId, BigDecimal amount) {}
+
+    @GetMapping("/adjustments")
+    public List<Map<String,Object>> adjustments(@AuthenticationPrincipal Jwt jwt) {
+        return jdbc.queryForList(
+            "SELECT id,amount,created_at AS \"createdAt\" FROM user_money_adjustments " +
+            "WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 100",
+            user(jwt));
+    }
+
+    @PostMapping("/adjustments")
+    @Transactional
+    public Balance adjust(@AuthenticationPrincipal Jwt jwt, @RequestBody AdjustmentRequest request) {
+        String id=user(jwt);
+        if (request==null || request.requestId()==null
+            || !request.requestId().matches("[A-Za-z0-9_-]{1,100}")
+            || request.amount()==null || request.amount().scale()>2
+            || request.amount().signum()==0
+            || request.amount().abs().compareTo(new BigDecimal("9999999999.99"))>0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid adjustment");
+
+        // One adjustment per requestId. The per-account lock also prevents lost updates.
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> null, id);
+        List<BigDecimal> existing=jdbc.query(
+            "SELECT amount FROM user_money_adjustments WHERE user_id=? AND request_id=?",
+            (rs,n)->rs.getBigDecimal(1),id,request.requestId());
+        if (!existing.isEmpty()) {
+            if (existing.get(0).compareTo(request.amount())!=0)
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"Adjustment already submitted with a different amount");
+            return balance(id);
+        }
+
+        List<BigDecimal> current=jdbc.query(
+            "SELECT allocation FROM user_safe_balances WHERE user_id=? FOR UPDATE",
+            (rs,n)->rs.getBigDecimal(1),id);
+        if (current.isEmpty())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Submit a paycheck first");
+
+        BigDecimal updated=current.get(0).add(request.amount());
+        if (updated.abs().compareTo(new BigDecimal("9999999999.99"))>0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Adjustment exceeds supported balance");
+        jdbc.update("INSERT INTO user_money_adjustments(user_id,request_id,amount) VALUES(?,?,?)",
+            id,request.requestId(),request.amount());
+        jdbc.update("UPDATE user_safe_balances SET allocation=? WHERE user_id=?",updated,id);
+        return balance(id);
+    }
+
     @PostMapping("/paychecks")
     @Transactional
     public Balance credit(@AuthenticationPrincipal Jwt jwt,@RequestBody PaycheckRequest request) {
