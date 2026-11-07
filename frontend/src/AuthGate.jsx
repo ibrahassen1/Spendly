@@ -2,20 +2,24 @@ import { SignIn, UserButton, useAuth } from "@clerk/react";
 import { useState } from "react";
 import AuthenticatedDashboard from "./AuthenticatedDashboard.jsx";
 
+const API = import.meta.env.VITE_SPENDLY_API_URL || "http://localhost:8080";
+const missingProductionApi = import.meta.env.PROD && !import.meta.env.VITE_SPENDLY_API_URL;
+
 export default function AuthGate() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [status, setStatus] = useState("");
   const [backendReady, setBackendReady] = useState(false);
   const checkStaging = async () => {
-    setStatus("Checking local secure backend…");
+    if (missingProductionApi) { setStatus("Spendly API URL is not configured for this deployment."); return; }
+    setStatus("Checking secure backend…");
     try {
       const token = await getToken();
       if (!token) throw new Error("Missing session token");
-      const response = await fetch("http://localhost:8080/api/planner", {
+      const response = await fetch(API.replace(/\/$/, "") + "/api/planner", {
         headers: { Authorization: "Bearer " + token }
       });
       if (response.ok) { setBackendReady(true); setStatus(""); }
-      else setStatus("Local backend returned HTTP " + response.status);
+      else setStatus("Backend returned HTTP " + response.status);
     } catch (error) {
       setStatus("Connection failed: " + error.message);
     }
@@ -35,9 +39,9 @@ export default function AuthGate() {
     <section className="finance-panel">
       <span className="finance-kicker">ACCOUNT SECURITY</span>
       <h2>You're signed in</h2>
-      <p>Clerk sign-in is active. Your financial dashboard remains locked until the local backend validates your identity.</p>
-      <p>Only account-scoped local endpoints are enabled; production financial endpoints remain disabled.</p>
-      <button type="button" className="finance-add" onClick={checkStaging}>Connect to local backend</button>
+      <p>Clerk sign-in is active. Your financial dashboard remains locked until the backend validates your identity.</p>
+      <p>Only your account's financial information can be accessed with your authenticated session.</p>
+      <button type="button" className="finance-add" onClick={checkStaging}>Connect securely</button>
       {status && <p role="status">{status}</p>}
     </section>
   </main>;
