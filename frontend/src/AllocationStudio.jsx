@@ -239,11 +239,11 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
 
   return <div className="allocation-studio">
     {demo && <div className="allocation-demo-banner"><strong>Feature preview</strong> · Sample data and local edits only. Nothing here touches your live Spendly.
-      <div><button onClick={() => setPreviewPage("dashboard")}>Dashboard</button><button onClick={() => setPreviewPage("goals")}>Goals</button></div>
+      <div><button onClick={() => setPreviewPage("dashboard")}>Dashboard</button><button onClick={() => setPreviewPage("goals")}>Goals</button><button onClick={() => setPreviewPage("safe")}>Safe to Spend</button></div>
     </div>}
     {message && <p className="allocation-message" role="status">{message}</p>}
 
-    {displayedPage === "dashboard" ? <>
+    {displayedPage === "safe" && demo ? <SafeToSpendDemo snapshot={snapshot || initialDemo} update={patch => persistDemo(patch)} /> : displayedPage === "dashboard" ? <>
       <div className="allocation-page-title"><span className="finance-kicker">PAYCHECK</span>
         <h2>{money(paycheckForAllocation)}</h2><p>Allocate your paycheck across goals and spending.</p>
       </div>
@@ -317,4 +317,63 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
       <div className="allocation-goal-actions"><button className="allocation-main-button" disabled={busy} onClick={() => savePlanner()}>{busy ? "Saving…" : "Save goal targets"}</button></div>
     </>}
   </div>;
+}
+
+
+function SafeToSpendDemo({ snapshot, update }) {
+  const base = snapshot.baseline || { amount: 500, date: dateToday() };
+  const adjustments = snapshot.adjustments || [];
+  const [amount, setAmount] = useState(String(base.amount));
+  const [startDate, setStartDate] = useState(base.date);
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [occurredOn, setOccurredOn] = useState(dateToday());
+  const [notice, setNotice] = useState("");
+  const balance = Number(base.amount) + adjustments.reduce((sum, a) => sum + Number(a.amount), 0);
+  const saveBase = e => {
+    e.preventDefault();
+    if (startDate > dateToday() || !Number.isFinite(Number(amount))) { setNotice("Choose a valid amount and date."); return; }
+    update({ baseline: { amount: Number(amount), date: startDate }, adjustments: [] });
+    setNotice("Demo starting balance updated. Previous sample adjustments cleared for the new baseline.");
+  };
+  const saveAdjust = e => {
+    e.preventDefault();
+    const value = Number(adjustAmount);
+    if (!value || !Number.isFinite(value) || !note.trim() || occurredOn > dateToday()) {
+      setNotice("Enter a nonzero amount, note, and valid date."); return;
+    }
+    update({ adjustments: [...adjustments, { id: uid(), amount: value, note: note.trim(), occurredOn }] });
+    setAdjustAmount(""); setNote("");
+    setNotice("Demo adjustment saved locally.");
+  };
+  return <>
+    <div className="allocation-page-title"><span className="finance-kicker">SPENDING · MANUALLY MANAGED</span>
+      <h2>Safe to Spend</h2><p>Set your actual balance yourself. Paycheck sliders only plan what you intend to spend.</p></div>
+    <section className="allocation-card allocation-demo-safe-total"><span className="finance-kicker">CURRENT AVAILABLE BALANCE</span>
+      <h2>{money(balance)}</h2><p>Tracking from {base.date} · Sample Gmail deductions: {money(0)}</p>
+    </section>
+    {notice && <p role="status" className="allocation-message">{notice}</p>}
+    <section className="allocation-card"><div className="allocation-card-head"><h3>Set starting balance & date</h3></div>
+      <form className="allocation-add-expense" onSubmit={saveBase}>
+        <label>Starting balance ($)<input aria-label="Starting balance" type="number" step=".01" value={amount} onChange={e => setAmount(e.target.value)} /></label>
+        <label>Count transactions from<input aria-label="Transaction start date" type="date" max={dateToday()} value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
+        <button type="submit">Set baseline</button>
+      </form>
+      <p className="allocation-hint">On the live app, old adjustments and Gmail history are preserved when a new baseline is set; this sample preview starts a fresh adjustment list.</p>
+    </section>
+    <section className="allocation-card"><div className="allocation-card-head"><h3>Add / Remove money</h3></div>
+      <form className="allocation-add-expense" onSubmit={saveAdjust}>
+        <label>Amount (+/−)<input aria-label="Adjustment amount" type="number" step=".01" value={adjustAmount} onChange={e => setAdjustAmount(e.target.value)} placeholder="+75 or -40" required /></label>
+        <label>Note<input aria-label="Adjustment note" value={note} onChange={e => setNote(e.target.value)} placeholder="Paycheck, Zelle for food…" maxLength={200} required /></label>
+        <label>When it happened<input aria-label="Adjustment date" type="date" max={dateToday()} value={occurredOn} onChange={e => setOccurredOn(e.target.value)} required /></label>
+        <button type="submit">Save adjustment</button>
+      </form>
+    </section>
+    <section className="allocation-card"><div className="allocation-card-head"><h3>Money history</h3></div>
+      {adjustments.length ? adjustments.slice().reverse().map(a => <div className="allocation-demo-history" key={a.id}>
+        <div><strong>{a.note}</strong><small>{a.occurredOn}</small></div>
+        <strong style={{ color: Number(a.amount) < 0 ? "#ffb3bc" : "#8be6bd" }}>{Number(a.amount) > 0 ? "+" : ""}{money(a.amount)}</strong>
+      </div>) : <p>No manual adjustments yet.</p>}
+    </section>
+  </>;
 }
