@@ -78,3 +78,14 @@
 .allocation-goal-card .allocation-card-head h3{font-size:1.35rem!important}
 .allocation-goal-entry>div{align-items:flex-start;flex-direction:column}
 }
+
+
+.allocation-demo-safe-total{background:linear-gradient(125deg,#322756,#171225)!important}
+.allocation-demo-safe-total h2{font-size:clamp(2.7rem,6vw,4.3rem);margin:12px 0}
+.allocation-demo-history{display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid #342b49;padding:13px 2px}
+.allocation-demo-history div{display:grid;gap:5px}
+.allocation-demo-history small{color:#aaa1c2}
+.allocation-add-expense label{display:flex;flex-direction:column;gap:7px;flex:1;min-width:150px;color:#bcb0da;font-size:.85rem}
+.allocation-expenses input{min-width:0;width:100%;background:transparent!important}
+.allocation-expenses input:first-child{font-weight:600}
+.allocation-expenses input:nth-child(2){width:110px}
