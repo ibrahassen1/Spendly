@@ -1699,3 +1699,17 @@ button,.page-tab,.activity-tab { font-weight:500 !important; letter-spacing:0 !i
 /* Financial status colors on both purple Safe-to-Spend heroes. */
 .spendly-restored .safe-fintech-hero .amount.balance-positive { color: #a5f3c1 !important; }
 .spendly-restored .safe-fintech-hero .amount.balance-negative { color: #ff9aa5 !important; }
+
+
+/* Account-scoped Safe to Spend manual baseline / dated adjustment controls */
+.spendly-baseline{margin:16px 0 22px}
+.spendly-baseline .finance-category-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.spendly-baseline h3{margin:6px 0 8px;font-size:1.24rem!important}
+.spendly-baseline-form{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.spendly-baseline-form label{display:grid;gap:7px}
+.spendly-baseline-form input,.budget-card input{background:#0c0b1a!important;border:1px solid #423752!important;border-radius:12px;padding:12px;color:#fff!important}
+.spendly-baseline-form p{grid-column:1/-1}
+.spendly-baseline-form button{justify-self:start}
+.spendly-adjustment-history .finance-category-top span{display:flex;flex-direction:column;gap:3px}
+.spendly-adjustment-history .finance-category-top small{color:#9d95b5;font-size:.75rem}
+@media(max-width:650px){.spendly-baseline-form{grid-template-columns:1fr}}
