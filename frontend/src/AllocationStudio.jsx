@@ -42,6 +42,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
   const [message, setMessage] = useState("");
   const [periodId, setPeriodId] = useState(uid);
   const [previewPage, setPreviewPage] = useState("dashboard");
+  const [archivedNotice, setArchivedNotice] = useState("");
 
   useEffect(() => {
     if (!demo) {
@@ -128,7 +129,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
   const removeCategory = category => {
     if (category.kind === "safe") return;
     if ((Number(allocatedGoals[category.id]) || 0) > 0) {
-      setMessage("This category already has recorded contributions. Rename it instead of deleting it."); return;
+      setArchivedNotice(category.name + " was archived. Its previous contributions remain in your history.");
     }
     setCategories(prev => {
       const safe = prev.find(c => c.kind === "safe");
@@ -147,12 +148,22 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
     setMessage("");
     try {
       const base = (await request("/api/planner")) || { periods: [], categories: [], goals: {} };
+      if (categories.filter(c => c.kind === "safe").length !== 1 || total !== 100 ||
+          categories.some(c => !c.name.trim()) ||
+          new Set(categories.map(c => c.name.trim().toLowerCase())).size !== categories.length)
+        throw new Error("Keep one Safe to Spend category and unique names totaling 100%.");
       const nextGoals = { ...(base.goals || {}) };
+      const active = new Set(categories.map(c => c.id));
+      for (const [id, goal] of Object.entries(nextGoals)) {
+        if (goal && !active.has(id) && goal.kind) {
+          nextGoals[id] = { ...goal, archived: true };
+        }
+      }
       for (const c of categories) {
         if (c.kind === "safe") continue;
         const target = Number(targets[c.id] || 0);
         if (!Number.isFinite(target) || target < 0 || target > 9999999999) throw new Error("Check goal target amounts.");
-        nextGoals[c.id] = { ...(nextGoals[c.id] || {}), target, name: c.name, kind: c.kind };
+        nextGoals[c.id] = { ...(nextGoals[c.id] || {}), target, name: c.name.trim(), kind: c.kind, archived: false };
       }
       await request("/api/planner", { method: "PUT", body: JSON.stringify({
         ...base, ...changes, allocationCategories: categories, expenseItems: items,
@@ -178,16 +189,16 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
 
   const savePaycheck = async event => {
     event.preventDefault();
-    if (demo) { persistDemo({ paycheck }); setMessage("Demo paycheck updated; no money or bank data changed."); return; }
+    if (demo) { persistDemo({ paycheck, goalAmounts: Object.fromEntries(categories.filter(c => c.kind !== "safe").map(c => [c.id, Math.round(Number(paycheck || 0) * c.percent) / 100])) }); setMessage("Sample paycheck allocations updated. Safe to Spend balance is unchanged."); return; }
     const amount = Number(paycheck);
-    if (!Number.isFinite(amount) || amount <= 0 || amount > 9999999999 || !/^\d+(\.\d{1,2})?$/.test(paycheck.trim()) || paycheckDate > dateToday()) {
+    if (total !== 100 || !Number.isFinite(amount) || amount <= 0 || amount > 9999999999 || !/^\d+(\.\d{1,2})?$/.test(paycheck.trim()) || paycheckDate > dateToday()) {
       setMessage("Enter a valid paycheck amount and date."); return;
     }
     setBusy(true); setMessage("");
     try {
-      const safeCents = Math.round(amount * 100 * safePercent / 100);
-      await request("/api/account/safe-to-spend/paychecks", { method: "POST",
-        body: JSON.stringify({ periodId, paycheck: amount, safeCredit: safeCents / 100, paycheckDate }) });
+      const safeCents = Math.round(amount * safePercent);
+      await request("/api/account/safe-to-spend/planned-paychecks", { method: "POST",
+        body: JSON.stringify({ periodId, paycheck: amount, safeCredit: 0, paycheckDate }) });
       // A fresh GET avoids overwriting edits made in another tab.
       const base = (await request("/api/planner")) || { periods: [], categories: [], goals: {} };
       if (!(base.goalCreditPeriods || {})[periodId]) {
@@ -211,7 +222,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
       }
       await refresh();
       setPaycheck(""); setPeriodId(uid());
-      setMessage("Paycheck saved. Safe to Spend received only its share; the other shares were recorded as goals.");
+      setMessage("Paycheck recorded for planning. All goal buckets updated; your actual Safe to Spend balance was not changed.");
     } catch (error) { setMessage((error.message || "Unable to save paycheck.") + " Check paycheck history before retrying; the same payment ID is preserved."); }
     finally { setBusy(false); }
   };
@@ -243,7 +254,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
         </div>
       </section>
       <section className="allocation-card"><div className="allocation-card-head"><h3>Allocate Your Paycheck</h3><span className={total === 100 ? "allocation-valid" : "allocation-error"}>Total: {total}% {total === 100 ? "✓" : "!"}</span></div>
-        <p className="allocation-hint">Changing a category reallocates the difference from Safe to Spend. Changing Safe to Spend redistributes from your other buckets.</p>
+        <p className="allocation-hint">Your percentages always total 100%. Changes to the Safe to Spend slider are planning-only and never change your actual spendable balance.</p>
         {categories.map((c, i) => <div className="allocation-slider-row" key={c.id}>
           <span className="allocation-category-symbol" style={{ color: SHADES[i % SHADES.length] }}>●</span>
           <input className="allocation-category-name" aria-label={"Category name for " + c.name} value={c.name}
@@ -256,13 +267,16 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
         <form className="allocation-add-category" onSubmit={addCategory}>
           <input aria-label="New allocation category" placeholder="New category (e.g. Travel)" value={editName} onChange={e => setEditName(e.target.value)} maxLength={40} />
           <select aria-label="Goal group" value={editKind} onChange={e => setEditKind(e.target.value)}>
-            <option value="savings">Savings goal</option><option value="investments">Investment goal</option><option value="expenses">Expense goal</option>
+            <option value="savings">Savings goal</option><option value="investments">Investment goal</option><option value="expenses">Expenses / bills</option><option value="other">Other goal (e.g. retirement)</option>
           </select><button type="submit">+ Category</button>
         </form>
         <button className="allocation-main-button" disabled={busy || total !== 100} onClick={() => savePlanner()}>{busy ? "Saving…" : "Save allocation plan"}</button>
       </section>
       <section className="allocation-card"><div className="allocation-card-head"><div><h3>Expenses Bucket</h3><p>Plan your bills and add their targets to the Goals tab.</p></div><strong>{money(plannedBills)} planned</strong></div>
-        <div className="allocation-expenses">{items.map(item => <div key={item.id}><span>{item.name}</span><b>{money(item.amount)}</b><button type="button" aria-label={"Remove " + item.name} onClick={() => setItems(prev => prev.filter(x => x.id !== item.id))}>×</button></div>)}
+        <div className="allocation-expenses">{items.map(item => <div key={item.id}>
+          <input aria-label={"Name for " + item.name} value={item.name} onChange={e => setItems(prev => prev.map(x => x.id === item.id ? { ...x, name: e.target.value.slice(0, 60) } : x))} />
+          <input aria-label={"Amount for " + item.name} type="number" step="0.01" min="0.01" value={item.amount} onChange={e => setItems(prev => prev.map(x => x.id === item.id ? { ...x, amount: e.target.value } : x))} />
+          <button type="button" aria-label={"Remove " + item.name} onClick={() => setItems(prev => prev.filter(x => x.id !== item.id))}>×</button></div>)}
           {!items.length && <p>No planned expenses yet. Add your first one below.</p>}
         </div>
         <form className="allocation-add-expense" onSubmit={addExpense}>
@@ -272,20 +286,20 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
         </form>
         <button className="allocation-secondary-button" disabled={busy} onClick={() => savePlanner()}>Save expense list</button>
       </section>
-      <section className="allocation-card allocation-check-entry"><div><h3>{demo ? "Try a paycheck amount" : "Record a paycheck"}</h3><p>{demo ? "Change this sample value to preview how each bucket responds." : "Uses your saved percentages. Safe to Spend receives only its share."}</p></div>
+      <section className="allocation-card allocation-check-entry"><div><h3>{demo ? "Try a paycheck amount" : "Record a paycheck"}</h3><p>{demo ? "Change this sample value to preview how each bucket responds." : "Uses your saved percentages. Your Safe to Spend balance is always adjusted separately."}</p></div>
         <form onSubmit={savePaycheck}>
           <input type="number" aria-label="Paycheck amount" min="0.01" step="0.01" placeholder="Paycheck amount" value={paycheck} onChange={e => setPaycheck(e.target.value)} />
           {!demo && <input type="date" aria-label="Paycheck date" max={dateToday()} value={paycheckDate} onChange={e => setPaycheckDate(e.target.value)} />}
-          <button disabled={busy || total !== 100} type="submit">{demo ? "Update preview" : busy ? "Saving…" : "Save paycheck"}</button>
+          <button disabled={busy || total !== 100} type="submit">{demo ? "Update preview" : busy ? "Saving…" : "Update paycheck allocations"}</button>
         </form>
       </section>
     </> : <>
       <div className="allocation-page-title"><span className="finance-kicker">YOUR GOALS</span><h2>Goals</h2><p>Track investments, savings, and expense buckets. Names follow your allocation categories.</p></div>
-      {["savings", "investments", "expenses"].map(group => {
+      {["savings", "investments", "expenses", "other"].map(group => {
         const groupCategories = categories.filter(c => c.kind === group);
         if (!groupCategories.length) return null;
         return <section key={group} className="allocation-card allocation-goal-card">
-          <div className="allocation-card-head"><h3>{({ savings: "Savings Goals", investments: "Investment Goals", expenses: "Expense Goals" })[group]}</h3><span>Linked to allocations</span></div>
+          <div className="allocation-card-head"><h3>{({ savings: "Savings Goals", investments: "Investment Goals", expenses: "Expense Goals", other: "Other Goals" })[group]}</h3><span>Linked to allocations</span></div>
           {groupCategories.map(c => {
             const funded = Number(allocatedGoals[c.id]) || 0;
             const target = Number(targets[c.id]) || (group === "expenses" ? plannedBills : 0);
@@ -299,6 +313,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
           <p className="allocation-hint">Goal allocations represent planned contributions, not verified bank transfers.</p>
         </section>;
       })}
+      {archivedNotice && <p className="allocation-message">{archivedNotice}</p>}
       <div className="allocation-goal-actions"><button className="allocation-main-button" disabled={busy} onClick={() => savePlanner()}>{busy ? "Saving…" : "Save goal targets"}</button></div>
     </>}
   </div>;
