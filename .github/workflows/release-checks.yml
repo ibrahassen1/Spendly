@@ -25,6 +25,7 @@ jobs:
       # Reconcile the existing stale Clerk lock entries during the release build.
       # Commit an updated package-lock.json before switching this back to npm ci.
       - run: npm install --no-audit --no-fund
+      - run: node --test src/allocationRules.test.js
       - run: npm run build
         env:
           VITE_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
