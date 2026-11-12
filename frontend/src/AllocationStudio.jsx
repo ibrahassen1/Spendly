@@ -161,7 +161,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
       }
       for (const c of categories) {
         if (c.kind === "safe") continue;
-        const target = Number(targets[c.id] || (c.kind === "expenses" ? items.reduce((sum, item) => sum + Number(item.amount || 0), 0) : 0));
+        const target = c.kind === "expenses" ? Math.round(items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) * 100) / 100 : Number(targets[c.id] || 0);
         if (!Number.isFinite(target) || target < 0 || target > 9999999999) throw new Error("Check goal target amounts.");
         nextGoals[c.id] = { ...(nextGoals[c.id] || {}), target, name: c.name.trim(), kind: c.kind, archived: false };
       }
@@ -302,15 +302,17 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
           <div className="allocation-card-head"><h3>{({ savings: "Savings Goals", investments: "Investment Goals", expenses: "Expense Goals", other: "Other Goals" })[group]}</h3><span>Linked to allocations</span></div>
           {groupCategories.map(c => {
             const funded = Number(allocatedGoals[c.id]) || 0;
-            const target = Number(targets[c.id]) || (group === "expenses" ? plannedBills : 0);
+            const target = group === "expenses" ? plannedBills : Number(targets[c.id]) || 0;
             const progress = target > 0 ? Math.min(100, funded / target * 100) : 0;
             return <div className="allocation-goal-entry" key={c.id}>
               <div><strong>{c.name}</strong><span>{money(funded)} / {money(target)} · {Math.round(progress)}%</span></div>
               <progress value={progress} max="100" />
-              <label>Target ($)<input type="number" min="0" step="0.01" value={group === "expenses" && (targets[c.id] === undefined || targets[c.id] === "0") ? String(plannedBills) : (targets[c.id] ?? "0")} onChange={e => setTargets(prev => ({ ...prev, [c.id]: e.target.value }))} /></label>
+              {group === "expenses"
+                ? <div className="allocation-linked-total"><span>Expense target · from Dashboard items</span><strong>{money(plannedBills)}</strong></div>
+                : <label>Target ($)<input type="number" min="0" step="0.01" value={targets[c.id] ?? "0"} onChange={e => setTargets(prev => ({ ...prev, [c.id]: e.target.value }))} /></label>}
             </div>;
           })}
-          <p className="allocation-hint">Goal allocations represent planned contributions, not verified bank transfers.</p>
+          <p className="allocation-hint">{group === "expenses" ? "The expense target updates automatically when you add, edit, or remove expenses on Dashboard. Your allocated amount tracks paycheck contributions." : "Goal allocations represent planned contributions, not verified bank transfers."}</p>
         </section>;
       })}
       {archivedNotice && <p className="allocation-message">{archivedNotice}</p>}
