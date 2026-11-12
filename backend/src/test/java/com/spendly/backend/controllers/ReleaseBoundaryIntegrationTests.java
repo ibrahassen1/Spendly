@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class ReleaseBoundaryIntegrationTests {
   @Autowired MockMvc mvc;
+  @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
   @MockitoBean JwtDecoder decoder;
   private static final String A="qa-alice-session";
   private static final String B="qa-bob-session";
@@ -127,6 +128,42 @@ class ReleaseBoundaryIntegrationTests {
       .andExpect(status().isOk()).andExpect(jsonPath("$.safeToSpend").value(80));
     mvc.perform(get("/api/account/safe-to-spend/adjustments").header("Authorization","Bearer "+A))
       .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+  }
+
+  @Test void excludingAndRestoringOneUsersPurchaseAdjustsOnlyTheirBalance() throws Exception {
+    mvc.perform(post("/api/account/safe-to-spend/initialize").header("Authorization","Bearer "+A))
+      .andExpect(status().isOk());
+    mvc.perform(post("/api/account/safe-to-spend/initialize").header("Authorization","Bearer "+B))
+      .andExpect(status().isOk());
+    for(String token:new String[]{A,B}) {
+      mvc.perform(put("/api/account/safe-to-spend/baseline")
+          .header("Authorization","Bearer "+token).contentType(MediaType.APPLICATION_JSON)
+          .content("{\"amount\":100,\"startDate\":\""+NOW+"\"}"))
+        .andExpect(status().isOk());
+    }
+    String owner="release-qa-alice";
+    jdbc.update("INSERT INTO user_email_alert_transactions(user_id,gmail_message_id,merchant,amount,transaction_date,source_bank,status) VALUES(?,?,?,?,?,?,?)",
+      owner,"test-spending-1","Test Groceries",new java.math.BigDecimal("30.00"),LocalDate.now(),"TEST","TEMPORARY");
+    Long id=jdbc.queryForObject("SELECT id FROM user_email_alert_transactions WHERE user_id=? AND gmail_message_id=?",
+      Long.class,owner,"test-spending-1");
+    mvc.perform(get("/api/account/safe-to-spend").header("Authorization","Bearer "+A))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.safeToSpend").value(70));
+    mvc.perform(delete("/api/account/gmail/transactions/"+id).header("Authorization","Bearer "+B))
+      .andExpect(status().isNotFound());
+    mvc.perform(get("/api/account/safe-to-spend").header("Authorization","Bearer "+A))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.safeToSpend").value(70));
+    mvc.perform(delete("/api/account/gmail/transactions/"+id).header("Authorization","Bearer "+A))
+      .andExpect(status().isNoContent());
+    mvc.perform(get("/api/account/safe-to-spend").header("Authorization","Bearer "+A))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.safeToSpend").value(100));
+    mvc.perform(post("/api/account/gmail/transactions/"+id+"/restore").header("Authorization","Bearer "+B))
+      .andExpect(status().isNotFound());
+    mvc.perform(post("/api/account/gmail/transactions/"+id+"/restore").header("Authorization","Bearer "+A))
+      .andExpect(status().isNoContent());
+    mvc.perform(get("/api/account/safe-to-spend").header("Authorization","Bearer "+A))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.safeToSpend").value(70));
+    mvc.perform(get("/api/account/safe-to-spend").header("Authorization","Bearer "+B))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.safeToSpend").value(100));
   }
 
   @Test void gmailRequiresAuthAndSyncCannotStartWithoutConnection() throws Exception {
