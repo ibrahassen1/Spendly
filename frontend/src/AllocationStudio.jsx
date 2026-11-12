@@ -322,60 +322,131 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
 }
 
 
+const DEMO_TRANSACTIONS = [
+  { id:"demo-coffee", merchant:"Coffee Shop", amount:12.89, occurredOn:"2026-11-11", time:"9:24 AM", last4:"7421" },
+  { id:"demo-uber", merchant:"Uber", amount:18.50, occurredOn:"2026-11-10", time:"8:59 PM", last4:"5793" },
+  { id:"demo-market", merchant:"Market", amount:16.43, occurredOn:"2026-11-09", time:"4:21 PM", last4:"8841" },
+  { id:"demo-food", merchant:"Whole Foods", amount:36.20, occurredOn:"2026-11-08", time:"2:10 PM", last4:"7421" },
+  { id:"demo-stream", merchant:"Streaming", amount:15.99, occurredOn:"2026-11-07", time:"11:14 AM", last4:"8841" },
+  { id:"demo-fuel", merchant:"Gas Station", amount:42.00, occurredOn:"2026-11-06", time:"5:22 PM", last4:"5793" },
+  { id:"demo-phone", merchant:"Phone Bill", amount:85.00, occurredOn:"2026-11-05", time:"7:00 AM", last4:"7421" },
+];
+
 function SafeToSpendDemo({ snapshot, update }) {
-  const base = snapshot.baseline || { amount: 500, date: dateToday() };
+  const base = snapshot.baseline || { amount:500, date:"2026-11-07" };
   const adjustments = snapshot.adjustments || [];
-  const [amount, setAmount] = useState(String(base.amount));
-  const [startDate, setStartDate] = useState(base.date);
-  const [adjustAmount, setAdjustAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [occurredOn, setOccurredOn] = useState(dateToday());
-  const [notice, setNotice] = useState("");
-  const balance = Number(base.amount) + adjustments.slice(snapshot.adjustmentOffset || 0).reduce((sum, a) => sum + Number(a.amount), 0);
-  const saveBase = e => {
-    e.preventDefault();
-    if (startDate > dateToday() || !Number.isFinite(Number(amount))) { setNotice("Choose a valid amount and date."); return; }
-    update({ baseline: { amount: Number(amount), date: startDate }, adjustmentOffset: adjustments.length });
-    setNotice("Demo baseline updated. Earlier adjustments remain in history and are not reapplied.");
+  const [activePanel,setActivePanel] = useState("");
+  const [amount,setAmount] = useState(String(base.amount));
+  const [startDate,setStartDate] = useState(base.date);
+  const [adjustAmount,setAdjustAmount] = useState("");
+  const [note,setNote] = useState("");
+  const [occurredOn,setOccurredOn] = useState(dateToday());
+  const [notice,setNotice] = useState("");
+  const [viewMore,setViewMore] = useState(false);
+  const [activityFilter,setActivityFilter] = useState("all");
+  const mockTransactions = snapshot.mockTransactions || DEMO_TRANSACTIONS;
+  const counted = mockTransactions.filter(t => t.occurredOn >= base.date);
+  const spent = counted.reduce((sum,t) => sum + Number(t.amount),0);
+  const newerAdjustments = adjustments.slice(snapshot.adjustmentOffset || 0);
+  const allocated = Number(base.amount) + newerAdjustments.reduce((sum,a) => sum + Number(a.amount),0);
+  const balance = allocated - spent;
+  const prettyDate = day => new Date(day + "T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  const open = panel => {
+    setActivePanel(panel);
+    setNotice("");
+    if (panel === "budget") {setAmount(String(base.amount));setStartDate(base.date);}
+    if (panel === "money") {setAdjustAmount("");setNote("");setOccurredOn(dateToday());}
   };
-  const saveAdjust = e => {
-    e.preventDefault();
-    const value = Number(adjustAmount);
-    if (!value || !Number.isFinite(value) || !note.trim() || occurredOn > dateToday()) {
-      setNotice("Enter a nonzero amount, note, and valid date."); return;
+  const saveBase = event => {
+    event.preventDefault();
+    const value=Number(amount);
+    if(!/^-?\d+(\.\d{1,2})?$/.test(amount.trim()) || !Number.isFinite(value) ||
+      Math.abs(value) > 9999999999.99 || !startDate || startDate>dateToday()){
+      setNotice("Enter a valid amount and a tracking date no later than today.");return;
     }
-    update({ adjustments: [...adjustments, { id: uid(), amount: value, note: note.trim(), occurredOn }] });
-    setAdjustAmount(""); setNote("");
-    setNotice("Demo adjustment saved locally.");
+    update({baseline:{amount:value,date:startDate},adjustmentOffset:adjustments.length});
+    setActivePanel("");
+    setNotice("Starting balance and tracking date updated in this preview. Past activity remains in history.");
   };
-  return <>
-    <div className="allocation-page-title"><span className="finance-kicker">SPENDING · MANUALLY MANAGED</span>
-      <h2>Safe to Spend</h2><p>Set your actual balance yourself. Paycheck sliders only plan what you intend to spend.</p></div>
-    <section className="allocation-card allocation-demo-safe-total"><span className="finance-kicker">CURRENT AVAILABLE BALANCE</span>
-      <h2>{money(balance)}</h2><p>Tracking from {base.date} · Sample Gmail deductions: {money(0)}</p>
+  const saveAdjust = event => {
+    event.preventDefault();
+    const value=Number(adjustAmount);
+    if(!/^-?\d+(\.\d{1,2})?$/.test(adjustAmount.trim()) || !Number.isFinite(value) ||
+      value === 0 || !note.trim() || note.trim().length>200 || !occurredOn || occurredOn>dateToday()){
+      setNotice("Enter a nonzero amount, a note, and a valid date.");return;
+    }
+    update({adjustments:[...adjustments,{id:uid(),amount:value,note:note.trim(),occurredOn,createdAt:new Date().toISOString()}]});
+    setActivePanel("");
+    setNotice("Money adjustment saved in the preview.");
+  };
+  const ledger=[
+    ...mockTransactions.map(t=>({id:t.id,title:t.merchant,date:t.occurredOn,time:t.time,last4:t.last4,amount:-Number(t.amount),type:"transaction",counted:t.occurredOn>=base.date})),
+    ...adjustments.map(a=>({id:a.id,title:a.note,date:a.occurredOn,time:"Manual entry",amount:Number(a.amount),type:"adjustment",counted:true}))
+  ].filter(entry => activityFilter==="all" || (activityFilter==="transactions" && entry.type==="transaction") ||
+    (activityFilter==="money" && entry.type==="adjustment"))
+    .sort((a,b)=>b.date.localeCompare(a.date) || ((a.type==="adjustment")?-1:1));
+  const shown=viewMore?ledger:ledger.slice(0,5);
+  return <div className="spendly-preview-safe">
+    <section className="spendly-preview-hero">
+      <div className="spendly-preview-hero-top"><span>SAFE TO SPEND</span><span>Since {prettyDate(base.date)}</span></div>
+      <h2 className={balance<0?"spendly-preview-negative":"spendly-preview-positive"}>{money(balance)}</h2>
+      <p>Available without touching the rest of your money.</p>
+      <div className="spendly-preview-stats">
+        <div><span>Budget</span><strong>{money(allocated)}</strong></div>
+        <div><span>Spent</span><strong>{money(spent)}</strong></div>
+      </div>
     </section>
+    <div className="spendly-preview-actions">
+      <button className="spendly-preview-refresh" onClick={()=>setNotice("Preview refreshed. These are sample transactions; no Gmail account was accessed.")}>↻ <span>Refresh Transactions</span></button>
+      <button onClick={()=>open("money")}>＋ Add Money</button>
+      <button onClick={()=>open("budget")}>Edit Budget</button>
+    </div>
     {notice && <p role="status" className="allocation-message">{notice}</p>}
-    <section className="allocation-card"><div className="allocation-card-head"><h3>Set starting balance & date</h3></div>
-      <form className="allocation-add-expense" onSubmit={saveBase}>
-        <label>Starting balance ($)<input aria-label="Starting balance" type="number" step=".01" value={amount} onChange={e => setAmount(e.target.value)} /></label>
-        <label>Count transactions from<input aria-label="Transaction start date" type="date" max={dateToday()} value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
-        <button type="submit">Set baseline</button>
-      </form>
-      <p className="allocation-hint">On the live app, old adjustments and Gmail history are preserved when a new baseline is set; the preview keeps them in history without applying them twice.</p>
+    <section className="spendly-preview-activity">
+      <div className="spendly-preview-activity-head"><div><span>CURRENT PERIOD</span><h3>Recent Activity</h3></div><small>Sample ledger</small></div>
+      <div className="spendly-preview-filters">
+        {[["all","All Activity"],["transactions","Transactions"],["money","Money Added"]].map(([id,label])=>
+          <button type="button" key={id} className={activityFilter===id?"active":""} onClick={()=>{setActivityFilter(id);setViewMore(false)}}>{label}</button>)}
+      </div>
+      <div className="spendly-preview-ledger">
+        {shown.map(entry=><div key={entry.id} className="spendly-preview-entry">
+          <div className="spendly-preview-entry-icon">{entry.type==="transaction"?"▣":entry.amount>0?"+":"−"}</div>
+          <div className="spendly-preview-entry-detail"><strong>{entry.title}</strong><small>{prettyDate(entry.date)} · {entry.time}{entry.last4?" · •••• "+entry.last4:""}</small>
+            {!entry.counted && <small className="spendly-preview-excluded">Before tracking start — not counted</small>}</div>
+          <strong className={entry.amount>=0?"spendly-preview-positive":"spendly-preview-negative"}>{entry.amount>0?"+":""}{money(entry.amount)}</strong>
+        </div>)}
+        {!shown.length && <p className="spendly-preview-empty">No activity in this view yet. Try Add Money above.</p>}
+      </div>
+      {ledger.length>5 && <button type="button" className="spendly-preview-more" onClick={()=>setViewMore(v=>!v)}>{viewMore?"Show Less ↑":"View More →"}</button>}
     </section>
-    <section className="allocation-card"><div className="allocation-card-head"><h3>Add / Remove money</h3></div>
-      <form className="allocation-add-expense" onSubmit={saveAdjust}>
-        <label>Amount (+/−)<input aria-label="Adjustment amount" type="number" step=".01" value={adjustAmount} onChange={e => setAdjustAmount(e.target.value)} placeholder="+75 or -40" required /></label>
-        <label>Note<input aria-label="Adjustment note" value={note} onChange={e => setNote(e.target.value)} placeholder="Paycheck, Zelle for food…" maxLength={200} required /></label>
-        <label>When it happened<input aria-label="Adjustment date" type="date" max={dateToday()} value={occurredOn} onChange={e => setOccurredOn(e.target.value)} required /></label>
-        <button type="submit">Save adjustment</button>
-      </form>
-    </section>
-    <section className="allocation-card"><div className="allocation-card-head"><h3>Money history</h3></div>
-      {adjustments.length ? adjustments.slice().reverse().map(a => <div className="allocation-demo-history" key={a.id}>
-        <div><strong>{a.note}</strong><small>{a.occurredOn}</small></div>
-        <strong style={{ color: Number(a.amount) < 0 ? "#ffb3bc" : "#8be6bd" }}>{Number(a.amount) > 0 ? "+" : ""}{money(a.amount)}</strong>
-      </div>) : <p>No manual adjustments yet.</p>}
-    </section>
-  </>;
+    {activePanel && <div className="spendly-preview-overlay" role="presentation" onClick={()=>setActivePanel("")}>
+      <section className="spendly-preview-modal" role="dialog" aria-modal="true" aria-labelledby="spendly-preview-dialog" onClick={e=>e.stopPropagation()}>
+        <div className="spendly-preview-modal-head"><h3 id="spendly-preview-dialog">{activePanel==="budget"?"Edit Budget":"Add / Remove Money"}</h3><button type="button" aria-label="Close" onClick={()=>setActivePanel("")}>×</button></div>
+        {activePanel==="budget"?<>
+          <p>Set your starting balance and the date to begin counting transactions.</p>
+          <form onSubmit={saveBase}>
+            <label>Starting balance<input type="number" aria-label="Starting balance" step=".01" value={amount} onChange={e=>setAmount(e.target.value)} required /></label>
+            <label>Count transactions from<input type="date" aria-label="Count transactions from" value={startDate} max={dateToday()} onChange={e=>setStartDate(e.target.value)} required /></label>
+            <p className="spendly-preview-modal-note">Previous entries stay in the ledger. Your spendable total is recalculated from this baseline.</p>
+            <div className="spendly-preview-modal-buttons"><button type="button" onClick={()=>setActivePanel("")}>Cancel</button><button type="submit">Save Changes</button></div>
+          </form>
+        </>:<>
+          <p>Add or subtract money manually, with a reason and date.</p>
+          <form onSubmit={saveAdjust}>
+            <label>Amount (+/−)<input aria-label="Adjustment amount" type="number" step=".01" placeholder="+75 or -40" value={adjustAmount} onChange={e=>setAdjustAmount(e.target.value)} required /></label>
+            <label>Reason / note
+              <select aria-label="Suggested note" value={["Paycheck","Zelle for food","Refund","Barbering income"].includes(note)?note:"custom"} onChange={e=>setNote(e.target.value==="custom"?"":e.target.value)}>
+                <option value="custom">Custom note…</option>
+                <option value="Paycheck">Paycheck</option><option value="Zelle for food">Zelle for food</option>
+                <option value="Refund">Refund</option><option value="Barbering income">Barbering income</option>
+              </select>
+              <input aria-label="Reason note" value={note} onChange={e=>setNote(e.target.value)} maxLength={200} placeholder="Why are you changing your balance?" required />
+            </label>
+            <label>When it happened<input type="date" aria-label="Adjustment date" max={dateToday()} value={occurredOn} onChange={e=>setOccurredOn(e.target.value)} required /></label>
+            <div className="spendly-preview-modal-buttons"><button type="button" onClick={()=>setActivePanel("")}>Cancel</button><button type="submit">Save Adjustment</button></div>
+          </form>
+        </>}
+      </section>
+    </div>}
+  </div>;
 }
