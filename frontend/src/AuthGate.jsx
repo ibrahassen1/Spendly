@@ -2,8 +2,9 @@ import { SignIn, UserButton, useAuth } from "@clerk/react";
 import { useCallback, useEffect, useState } from "react";
 import AuthenticatedDashboard from "./AuthenticatedDashboard.jsx";
 
-const API = import.meta.env.VITE_SPENDLY_API_URL || "http://localhost:8080";
-const missingProductionApi = import.meta.env.PROD && !import.meta.env.VITE_SPENDLY_API_URL;
+// QA ONLY: do not use Vercel API variables or the production endpoint.
+const API = "https://spendly-v11-qa-staging.up.railway.app";
+const missingProductionApi = false; // Dedicated QA backend URL is pinned above.
 
 export default function AuthGate() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
