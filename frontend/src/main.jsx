@@ -25,9 +25,9 @@ if ('caches' in window) {
 
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
-// Safety branch: enforce mock-only previews even without Vercel team environment access.
-// Remove this guard when running against a dedicated isolated backend, never production.
-if (true || import.meta.env.VITE_SPENDLY_DEMO_MODE === 'true') {
+// QA ONLY: real signed-in testing is hardwired to a dedicated staging API in AuthGate and AuthenticatedDashboard.
+// This branch must never merge into main; demo branch remains separate.
+if (false) {
   // Isolated, branch-only interactive preview. No Clerk login or live API calls.
   createRoot(document.getElementById('root')).render(
     <div className="app spendly-restored"><div className="dashboard">
