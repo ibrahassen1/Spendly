@@ -4,7 +4,8 @@ import "./App.css";
 import AllocationStudio from "./AllocationStudio.jsx";
 import SafeToSpendAccount from "./SafeToSpendAccount.jsx";
 
-const API = import.meta.env.VITE_SPENDLY_API_URL || "http://localhost:8080";
+// QA ONLY: do not use Vercel API variables or the production endpoint.
+const API = "https://spendly-v11-qa-staging.up.railway.app";
 const money = value => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD"}).format(Number(value)||0);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
