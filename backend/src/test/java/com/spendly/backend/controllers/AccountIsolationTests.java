@@ -107,9 +107,9 @@ class AccountIsolationTests {
     @SuppressWarnings("unchecked")
     void duplicateAdjustmentIsIdempotentForTheSameUser() {
         when(jdbc.query(
-                argThat(sql -> sql.contains("SELECT amount FROM user_money_adjustments")),
+                argThat(sql -> sql.contains("SELECT amount,note,occurred_on FROM user_money_adjustments")),
                 any(RowMapper.class), eq("clerk-alice"), eq("once")))
-                .thenReturn(List.of(new BigDecimal("20.00")));
+                .thenReturn(List.<Object[]>of(new Object[]{new BigDecimal("20.00"), "Zelle for food", LocalDate.of(2026, 11, 11)}));
 
         when(jdbc.query(
                 argThat(sql -> sql.contains("FROM user_safe_balances b WHERE b.user_id=?")),
@@ -120,7 +120,7 @@ class AccountIsolationTests {
 
         var result = new AccountSafeToSpendController(jdbc).adjust(
                 alice, new AccountSafeToSpendController.AdjustmentRequest(
-                        "once", new BigDecimal("20.00")));
+                        "once", new BigDecimal("20.00"), "Zelle for food", LocalDate.of(2026, 11, 11)));
 
         assertEquals(new BigDecimal("220.00"), result.safeToSpend());
         verify(jdbc, never()).update(anyString(), any(Object[].class));
@@ -131,9 +131,45 @@ class AccountIsolationTests {
         var controller = new AccountSafeToSpendController(jdbc);
         var error = assertThrows(ResponseStatusException.class, () ->
                 controller.adjust(alice, new AccountSafeToSpendController.AdjustmentRequest(
-                        "invalid", BigDecimal.ZERO)));
+                        "invalid", BigDecimal.ZERO, "Paycheck", LocalDate.of(2026, 11, 11))));
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verify(jdbc, never()).update(anyString(), any(Object[].class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void manuallySettingBaselineWritesOnlyOwnAccountAndDate() {
+        when(jdbc.query(anyString(), any(RowMapper.class), eq("clerk-bob")))
+            .thenReturn(List.of(new AccountSafeToSpendController.Balance(
+                new BigDecimal("500.00"), BigDecimal.ZERO,
+                new BigDecimal("500.00"), LocalDate.of(2026, 11, 11))));
+        var controller = new AccountSafeToSpendController(jdbc);
+        controller.setBaseline(bob, new AccountSafeToSpendController.BaselineRequest(
+            new BigDecimal("500.00"), LocalDate.of(2026, 11, 11)));
+        verify(jdbc).update(
+            argThat(sql -> sql.contains("ON CONFLICT(user_id) DO UPDATE")
+                && sql.contains("start_date=EXCLUDED.start_date")),
+            eq("clerk-bob"), eq(new BigDecimal("500.00")), eq(LocalDate.of(2026, 11, 11)));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void planningAPaycheckNeverCreditsSafeBalance() {
+        when(jdbc.query(anyString(), any(RowMapper.class), eq("clerk-alice"), eq("pay-once")))
+            .thenReturn(List.of());
+        when(jdbc.query(anyString(), any(RowMapper.class), eq("clerk-alice")))
+            .thenReturn(List.of(new AccountSafeToSpendController.Balance(
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDate.now())));
+        var controller = new AccountSafeToSpendController(jdbc);
+        controller.planPaycheck(alice, new AccountSafeToSpendController.PaycheckRequest(
+            "pay-once", new BigDecimal("1000.00"), BigDecimal.ZERO, LocalDate.now()));
+        verify(jdbc).update(
+            argThat(sql -> sql.contains("user_paycheck_credits") && sql.contains("safe_credit")),
+            eq("clerk-alice"), eq("pay-once"), eq(new BigDecimal("1000.00")),
+            eq(BigDecimal.ZERO), eq(LocalDate.now()));
+        verify(jdbc, never()).update(
+            argThat(sql -> sql.contains("SET allocation=allocation+")),
+            any(), any());
     }
 
 }

@@ -66,12 +66,33 @@ public class AccountSafeToSpendController {
             user(jwt));
     }
 
-    public record AdjustmentRequest(String requestId, BigDecimal amount) {}
+    public record BaselineRequest(BigDecimal amount, LocalDate startDate) {}
+    /**
+     * Explicit manual baseline: never writes another account's ledger, and never
+     * modifies paycheck records or transaction history.
+     */
+    @PutMapping("/baseline")
+    @Transactional
+    public Balance setBaseline(@AuthenticationPrincipal Jwt jwt, @RequestBody BaselineRequest request) {
+        if (request == null || request.amount() == null || request.startDate() == null
+            || request.amount().scale() > 2
+            || request.amount().abs().compareTo(new BigDecimal("9999999999.99")) > 0
+            || request.startDate().isAfter(LocalDate.now()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid baseline amount or date");
+        String id=user(jwt);
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> null, id);
+        jdbc.update("INSERT INTO user_safe_balances(user_id,allocation,start_date) VALUES(?,?,?) " +
+            "ON CONFLICT(user_id) DO UPDATE SET allocation=EXCLUDED.allocation,start_date=EXCLUDED.start_date",
+            id,request.amount(),request.startDate());
+        return balance(id);
+    }
+
+    public record AdjustmentRequest(String requestId, BigDecimal amount, String note, LocalDate occurredOn) {}
 
     @GetMapping("/adjustments")
     public List<Map<String,Object>> adjustments(@AuthenticationPrincipal Jwt jwt) {
         return jdbc.queryForList(
-            "SELECT id,amount,created_at AS \"createdAt\" FROM user_money_adjustments " +
+            "SELECT id,amount,note,occurred_on AS \"occurredOn\",created_at AS \"createdAt\" FROM user_money_adjustments " +
             "WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 100",
             user(jwt));
     }
@@ -84,16 +105,21 @@ public class AccountSafeToSpendController {
             || !request.requestId().matches("[A-Za-z0-9_-]{1,100}")
             || request.amount()==null || request.amount().scale()>2
             || request.amount().signum()==0
-            || request.amount().abs().compareTo(new BigDecimal("9999999999.99"))>0)
+            || request.amount().abs().compareTo(new BigDecimal("9999999999.99"))>0
+            || request.note()==null || request.note().isBlank() || request.note().trim().length()>200
+            || request.occurredOn()==null || request.occurredOn().isAfter(LocalDate.now()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid adjustment");
 
         // One adjustment per requestId. The per-account lock also prevents lost updates.
         jdbc.query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> null, id);
-        List<BigDecimal> existing=jdbc.query(
-            "SELECT amount FROM user_money_adjustments WHERE user_id=? AND request_id=?",
-            (rs,n)->rs.getBigDecimal(1),id,request.requestId());
+        List<Object[]> existing=jdbc.query(
+            "SELECT amount,note,occurred_on FROM user_money_adjustments WHERE user_id=? AND request_id=?",
+            (rs,n)->new Object[]{rs.getBigDecimal(1),rs.getString(2),rs.getDate(3).toLocalDate()},id,request.requestId());
         if (!existing.isEmpty()) {
-            if (existing.get(0).compareTo(request.amount())!=0)
+            Object[] previous= (Object[]) existing.get(0);
+            if (((BigDecimal) previous[0]).compareTo(request.amount())!=0
+                || !previous[1].equals(request.note().trim())
+                || !previous[2].equals(request.occurredOn()))
                 throw new ResponseStatusException(HttpStatus.CONFLICT,"Adjustment already submitted with a different amount");
             return balance(id);
         }
@@ -107,9 +133,37 @@ public class AccountSafeToSpendController {
         BigDecimal updated=current.get(0).add(request.amount());
         if (updated.abs().compareTo(new BigDecimal("9999999999.99"))>0)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Adjustment exceeds supported balance");
-        jdbc.update("INSERT INTO user_money_adjustments(user_id,request_id,amount) VALUES(?,?,?)",
-            id,request.requestId(),request.amount());
+        jdbc.update("INSERT INTO user_money_adjustments(user_id,request_id,amount,note,occurred_on) VALUES(?,?,?,?,?)",
+            id,request.requestId(),request.amount(),request.note().trim(),request.occurredOn());
         jdbc.update("UPDATE user_safe_balances SET allocation=? WHERE user_id=?",updated,id);
+        return balance(id);
+    }
+
+    /** Record a paycheck for planning only; it cannot credit Safe to Spend. */
+    @PostMapping("/planned-paychecks")
+    @Transactional
+    public Balance planPaycheck(@AuthenticationPrincipal Jwt jwt, @RequestBody PaycheckRequest request) {
+        if (request == null || request.periodId()==null || !request.periodId().matches("[A-Za-z0-9_-]{1,100}")
+            || request.paycheck()==null || request.paycheck().scale()>2 || request.paycheck().signum()<=0
+            || request.paycheck().compareTo(new BigDecimal("9999999999.99"))>0
+            || request.paycheckDate()==null || request.paycheckDate().isAfter(LocalDate.now()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid paycheck");
+        String id=user(jwt);
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> null, id);
+        jdbc.update("INSERT INTO user_safe_balances(user_id,allocation,start_date) VALUES(?,?,?) ON CONFLICT(user_id) DO NOTHING",
+            id,BigDecimal.ZERO,request.paycheckDate());
+        var prior=jdbc.query("SELECT paycheck,paycheck_date FROM user_paycheck_credits WHERE user_id=? AND period_id=?",
+            (rs,n)->new Object[]{rs.getBigDecimal(1),rs.getDate(2).toLocalDate()},id,request.periodId());
+        if (!prior.isEmpty()) {
+            Object[] p=prior.get(0);
+            if (((BigDecimal)p[0]).compareTo(request.paycheck())!=0 || !p[1].equals(request.paycheckDate()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"Paycheck already submitted with different values");
+            // Existing entries might have credited spending using the legacy endpoint.
+            // Do not modify that credit or apply another credit here.
+            return balance(id);
+        }
+        jdbc.update("INSERT INTO user_paycheck_credits(user_id,period_id,paycheck,safe_credit,paycheck_date) VALUES(?,?,?,?,?)",
+            id,request.periodId(),request.paycheck(),BigDecimal.ZERO,request.paycheckDate());
         return balance(id);
     }
 
