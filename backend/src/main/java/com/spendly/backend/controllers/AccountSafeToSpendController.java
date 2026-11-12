@@ -112,7 +112,7 @@ public class AccountSafeToSpendController {
 
         // One adjustment per requestId. The per-account lock also prevents lost updates.
         jdbc.query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> null, id);
-        List<BigDecimal> existing=jdbc.query(
+        List<Object[]> existing=jdbc.query(
             "SELECT amount,note,occurred_on FROM user_money_adjustments WHERE user_id=? AND request_id=?",
             (rs,n)->new Object[]{rs.getBigDecimal(1),rs.getString(2),rs.getDate(3).toLocalDate()},id,request.requestId());
         if (!existing.isEmpty()) {
