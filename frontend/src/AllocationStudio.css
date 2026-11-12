@@ -110,3 +110,8 @@
   font-weight: 400 !important;
   font-variant-numeric: tabular-nums lining-nums;
 }
+
+/* Expenses goal is derived directly from the Dashboard's expense list. */
+.allocation-linked-total{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #4b396c;border-radius:12px;background:#28203e}
+.allocation-linked-total span{font-size:.8rem;color:#bdb2d7}
+.allocation-linked-total strong{font-weight:400!important;font-variant-numeric:tabular-nums;white-space:nowrap}
