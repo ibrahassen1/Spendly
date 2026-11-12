@@ -34,7 +34,10 @@ public class ApiSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/account/gmail/callback").permitAll()
                 .requestMatchers("/api/account/gmail/sync", "/api/account/gmail/transactions", "/api/account/gmail/transactions/**").authenticated()
-                .requestMatchers("/api/planner", "/api/account/safe-to-spend", "/api/account/safe-to-spend/paychecks", "/api/account/safe-to-spend/adjustments", "/api/account/gmail/connect", "/api/account/gmail/status", "/api/account/gmail/connection").authenticated()
+                // New account-scoped endpoints (initialize, baseline, adjustments,
+                // paychecks and planned-paychecks) must all require a Clerk JWT.
+                .requestMatchers("/api/account/safe-to-spend", "/api/account/safe-to-spend/**").authenticated()
+                .requestMatchers("/api/planner", "/api/account/gmail/connect", "/api/account/gmail/status", "/api/account/gmail/connection").authenticated()
                 .requestMatchers("/api/**").denyAll()
                 .anyRequest().permitAll())
             .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
