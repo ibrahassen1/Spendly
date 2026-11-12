@@ -329,12 +329,12 @@ function SafeToSpendDemo({ snapshot, update }) {
   const [note, setNote] = useState("");
   const [occurredOn, setOccurredOn] = useState(dateToday());
   const [notice, setNotice] = useState("");
-  const balance = Number(base.amount) + adjustments.reduce((sum, a) => sum + Number(a.amount), 0);
+  const balance = Number(base.amount) + adjustments.slice(snapshot.adjustmentOffset || 0).reduce((sum, a) => sum + Number(a.amount), 0);
   const saveBase = e => {
     e.preventDefault();
     if (startDate > dateToday() || !Number.isFinite(Number(amount))) { setNotice("Choose a valid amount and date."); return; }
-    update({ baseline: { amount: Number(amount), date: startDate }, adjustments: [] });
-    setNotice("Demo starting balance updated. Previous sample adjustments cleared for the new baseline.");
+    update({ baseline: { amount: Number(amount), date: startDate }, adjustmentOffset: adjustments.length });
+    setNotice("Demo baseline updated. Earlier adjustments remain in history and are not reapplied.");
   };
   const saveAdjust = e => {
     e.preventDefault();
@@ -359,7 +359,7 @@ function SafeToSpendDemo({ snapshot, update }) {
         <label>Count transactions from<input aria-label="Transaction start date" type="date" max={dateToday()} value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
         <button type="submit">Set baseline</button>
       </form>
-      <p className="allocation-hint">On the live app, old adjustments and Gmail history are preserved when a new baseline is set; this sample preview starts a fresh adjustment list.</p>
+      <p className="allocation-hint">On the live app, old adjustments and Gmail history are preserved when a new baseline is set; the preview keeps them in history without applying them twice.</p>
     </section>
     <section className="allocation-card"><div className="allocation-card-head"><h3>Add / Remove money</h3></div>
       <form className="allocation-add-expense" onSubmit={saveAdjust}>
