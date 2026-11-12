@@ -320,7 +320,17 @@ export default function AuthenticatedDashboard({ getToken }) {
                 <input type="number" step="0.01" placeholder="100.00 or -100.00" value={addAmount} onChange={e=>setAddAmount(e.target.value)} required />
               </div>
             </label>
-            <label>Note / reason<input type="text" maxLength="200" placeholder="Paycheck, Zelle for food, cash tip…" value={adjustmentNote} onChange={e=>setAdjustmentNote(e.target.value)} required /></label>
+            <label>Note / reason
+              <select aria-label="Common reason" value={["Paycheck","Zelle for food","Refund","Barbering income"].includes(adjustmentNote) ? adjustmentNote : "custom"}
+                onChange={e => { if (e.target.value !== "custom") setAdjustmentNote(e.target.value); else setAdjustmentNote(""); }}>
+                <option value="custom">Custom note…</option>
+                <option value="Paycheck">Paycheck</option>
+                <option value="Zelle for food">Zelle for food</option>
+                <option value="Refund">Refund</option>
+                <option value="Barbering income">Barbering income</option>
+              </select>
+              <input type="text" maxLength="200" placeholder="Why are you adding or removing money?" value={adjustmentNote} onChange={e=>setAdjustmentNote(e.target.value)} required />
+            </label>
             <label>When it happened<input type="date" max={today()} value={adjustmentDate} onChange={e=>setAdjustmentDate(e.target.value)} required /></label>
             <p className="date-explanation">Use a positive amount to add money or a negative amount to remove it.</p>
             <p className="date-explanation">Current allocation: {money(balance.allocation)}. Your tracking start date stays the same.</p>
