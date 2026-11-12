@@ -89,3 +89,24 @@
 .allocation-expenses input{min-width:0;width:100%;background:transparent!important}
 .allocation-expenses input:first-child{font-weight:600}
 .allocation-expenses input:nth-child(2){width:110px}
+
+
+/* Slimmer financial numerals — preserve heading/label hierarchy. */
+.allocation-page-title h2,
+.allocation-donut strong,
+.allocation-demo-safe-total h2 {
+  font-weight: 400 !important;
+  letter-spacing: -.045em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.allocation-legend strong,
+.allocation-legend b,
+.allocation-slider-row strong,
+.allocation-slider-row b,
+.allocation-expenses b,
+.allocation-card-head > strong,
+.allocation-goal-entry span,
+.allocation-demo-history > strong {
+  font-weight: 400 !important;
+  font-variant-numeric: tabular-nums lining-nums;
+}
