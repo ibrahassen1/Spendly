@@ -4,6 +4,7 @@ on:
     branches:
       - feature/spendly-ui-upgrade
       - main
+      - test/v11-release-safety
   pull_request:
     branches:
       - main
