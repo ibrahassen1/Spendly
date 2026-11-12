@@ -161,7 +161,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
       }
       for (const c of categories) {
         if (c.kind === "safe") continue;
-        const target = Number(targets[c.id] || 0);
+        const target = Number(targets[c.id] || (c.kind === "expenses" ? items.reduce((sum, item) => sum + Number(item.amount || 0), 0) : 0));
         if (!Number.isFinite(target) || target < 0 || target > 9999999999) throw new Error("Check goal target amounts.");
         nextGoals[c.id] = { ...(nextGoals[c.id] || {}), target, name: c.name.trim(), kind: c.kind, archived: false };
       }
@@ -307,7 +307,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
             return <div className="allocation-goal-entry" key={c.id}>
               <div><strong>{c.name}</strong><span>{money(funded)} / {money(target)} · {Math.round(progress)}%</span></div>
               <progress value={progress} max="100" />
-              <label>Target ($)<input type="number" min="0" step="0.01" value={targets[c.id] ?? (group === "expenses" ? String(plannedBills) : "0")} onChange={e => setTargets(prev => ({ ...prev, [c.id]: e.target.value }))} /></label>
+              <label>Target ($)<input type="number" min="0" step="0.01" value={group === "expenses" && (targets[c.id] === undefined || targets[c.id] === "0") ? String(plannedBills) : (targets[c.id] ?? "0")} onChange={e => setTargets(prev => ({ ...prev, [c.id]: e.target.value }))} /></label>
             </div>;
           })}
           <p className="allocation-hint">Goal allocations represent planned contributions, not verified bank transfers.</p>
