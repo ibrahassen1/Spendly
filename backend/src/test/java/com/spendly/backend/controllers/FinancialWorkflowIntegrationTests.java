@@ -98,13 +98,16 @@ class FinancialWorkflowIntegrationTests {
     void migrationV104PreservesExistingAdjustmentHistory() throws Exception {
         // Start with the old V103 table layout in a transaction-local schema.
         jdbc.execute("CREATE SCHEMA qa_v103");
-        jdbc.execute("CREATE TABLE qa_v103.user_money_adjustments (" +
-            "id BIGSERIAL PRIMARY KEY,user_id VARCHAR(255) NOT NULL," +
-            "request_id VARCHAR(100) NOT NULL,amount NUMERIC(12,2) NOT NULL," +
-            "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)");
-        jdbc.update("INSERT INTO qa_v103.user_money_adjustments(user_id,request_id,amount) VALUES(?,?,?)",
-            "test-ibra-a","before-upgrade",new BigDecimal("42.00"));
+        jdbc.execute("CREATE TABLE qa_v103.user_safe_balances (" +
+            "user_id VARCHAR(255) PRIMARY KEY,allocation NUMERIC(12,2) NOT NULL," +
+            "start_date DATE NOT NULL)");
         jdbc.execute("SET LOCAL search_path TO qa_v103");
+        ScriptUtils.executeSqlScript(DataSourceUtils.getConnection(dataSource),
+            new ClassPathResource("db/migration/V103__user_money_adjustments.sql"));
+        jdbc.update("INSERT INTO user_safe_balances(user_id,allocation,start_date) VALUES(?,?,?)",
+            "test-ibra-a",new BigDecimal("500.00"),LocalDate.now().minusDays(3));
+        jdbc.update("INSERT INTO user_money_adjustments(user_id,request_id,amount) VALUES(?,?,?)",
+            "test-ibra-a","before-upgrade",new BigDecimal("42.00"));
         ScriptUtils.executeSqlScript(DataSourceUtils.getConnection(dataSource),
             new ClassPathResource("db/migration/V104__user_adjustment_notes_dates.sql"));
         var old=jdbc.queryForMap("SELECT amount,note,occurred_on FROM user_money_adjustments WHERE request_id=?",
@@ -116,6 +119,15 @@ class FinancialWorkflowIntegrationTests {
                 "VALUES(?,?,?,?,?)","test-ibra-a","new-upgrade",new BigDecimal("25.00"),
                 "Paycheck",LocalDate.now());
         assertEquals(2,jdbc.queryForObject("SELECT COUNT(*) FROM user_money_adjustments",Integer.class));
+        assertEquals(0,new BigDecimal("500.00").compareTo(jdbc.queryForObject(
+            "SELECT allocation FROM user_safe_balances WHERE user_id=?",BigDecimal.class,"test-ibra-a")));
+        assertEquals(1,jdbc.queryForObject(
+            "SELECT COUNT(*) FROM pg_indexes WHERE schemaname='qa_v103' AND indexname='idx_user_money_adjustments_occurred'",
+            Integer.class));
+        assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () ->
+            jdbc.update("INSERT INTO user_money_adjustments(user_id,request_id,amount,note,occurred_on) VALUES(?,?,?,?,?)",
+                "test-ibra-a","new-upgrade",new BigDecimal("25.00"),"Duplicate",LocalDate.now()));
+
     }
 
     private void addTransaction(String user,String suffix,BigDecimal amount,LocalDate date,String status) {
