@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./AllocationStudio.css";
+import { sumExpenses, allocationTotal, rebalanceAllocations, paycheckAllocationsInCents } from "./allocationRules.js";
 
 const DEFAULT_CATEGORIES = [
   { id: "investments", name: "Investments", kind: "investments", percent: 10 },
@@ -66,13 +67,13 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
   const displayedPage = demo ? previewPage : page;
   const latestPaycheck = demo ? Number(paycheck) : (Number(history?.[0]?.paycheck) || 0);
   const paycheckForAllocation = Number(paycheck || 0) > 0 ? Number(paycheck) : latestPaycheck;
-  const total = categories.reduce((sum, c) => sum + (Number(c.percent) || 0), 0);
+  const total = allocationTotal(categories);
   const safePercent = categories.find(c => c.kind === "safe")?.percent ?? 0;
   const allocatedGoals = demo ? (snapshot?.goalAmounts || {}) : Object.fromEntries(
     categories.map(c => [c.id, (Number(planner?.goals?.[c.id]?.allocatedCents) || 0) / 100])
   );
   const allocatedExpenses = categories.filter(c => c.kind === "expenses").reduce((sum, c) => sum + (Number(allocatedGoals[c.id]) || 0), 0);
-  const plannedBills = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const plannedBills = sumExpenses(items);
   const draftSafe = paycheckForAllocation * safePercent / 100;
 
   const persistDemo = patch => {
@@ -86,34 +87,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
   // moves, compensate in other categories without allowing negative shares.
   const moveSlider = (id, nextValue) => {
     setMessage("");
-    setCategories(previous => {
-      const next = previous.map(c => ({ ...c }));
-      const active = next.find(c => c.id === id);
-      const safe = next.find(c => c.kind === "safe");
-      if (!active || !safe) return previous;
-      const target = validPercent(nextValue);
-      if (active.id !== safe.id) {
-        const change = Math.max(-active.percent, Math.min(target - active.percent, safe.percent));
-        active.percent += change;
-        safe.percent -= change;
-      } else {
-        const others = next.filter(c => c.kind !== "safe").sort((a, b) => b.percent - a.percent);
-        let change = target - safe.percent;
-        if (change > 0) {
-          for (const other of others) {
-            const taken = Math.min(change, other.percent);
-            other.percent -= taken;
-            change -= taken;
-            if (!change) break;
-          }
-          safe.percent = target - change;
-        } else if (others.length) {
-          others[0].percent += -change;
-          safe.percent = target;
-        }
-      }
-      return next;
-    });
+    setCategories(previous => rebalanceAllocations(previous,id,nextValue));
   };
 
   const addCategory = event => {
@@ -161,7 +135,7 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
       }
       for (const c of categories) {
         if (c.kind === "safe") continue;
-        const target = c.kind === "expenses" ? Math.round(items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) * 100) / 100 : Number(targets[c.id] || 0);
+        const target = c.kind === "expenses" ? sumExpenses(items) : Number(targets[c.id] || 0);
         if (!Number.isFinite(target) || target < 0 || target > 9999999999) throw new Error("Check goal target amounts.");
         nextGoals[c.id] = { ...(nextGoals[c.id] || {}), target, name: c.name.trim(), kind: c.kind, archived: false };
       }
@@ -196,20 +170,18 @@ export default function AllocationStudio({ demo = false, page = "dashboard", pla
     }
     setBusy(true); setMessage("");
     try {
-      const safeCents = Math.round(amount * safePercent);
+      const planned = paycheckAllocationsInCents(amount,categories);
+      const safeCents = planned.plannedSafeCents;
       await request("/api/account/safe-to-spend/planned-paychecks", { method: "POST",
         body: JSON.stringify({ periodId, paycheck: amount, safeCredit: 0, paycheckDate }) });
       // A fresh GET avoids overwriting edits made in another tab.
       const base = (await request("/api/planner")) || { periods: [], categories: [], goals: {} };
       if (!(base.goalCreditPeriods || {})[periodId]) {
         const goals = { ...(base.goals || {}) };
-        const payoutCents = Math.round(amount * 100);
-        let remaining = payoutCents - safeCents;
         const nonSafe = categories.filter(c => c.kind !== "safe");
         for (let i = 0; i < nonSafe.length; i++) {
           const c = nonSafe[i];
-          const cents = i === nonSafe.length - 1 ? remaining : Math.min(remaining, Math.round(payoutCents * c.percent / 100));
-          remaining -= cents;
+          const cents = planned.goals[c.id];
           goals[c.id] = { ...(goals[c.id] || {}), name: c.name, kind: c.kind,
             target: Number(targets[c.id] || goals[c.id]?.target || 0),
             allocatedCents: (Number(goals[c.id]?.allocatedCents) || 0) + cents };
