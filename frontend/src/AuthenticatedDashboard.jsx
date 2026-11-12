@@ -18,6 +18,12 @@ export default function AuthenticatedDashboard({ getToken }) {
   const [adjustments, setAdjustments] = useState([]);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addAmount, setAddAmount] = useState("");
+  const [adjustmentNote, setAdjustmentNote] = useState("");
+  const [adjustmentDate, setAdjustmentDate] = useState(today());
+  const [baselineAmount, setBaselineAmount] = useState("");
+  const [baselineDate, setBaselineDate] = useState(today());
+  const [baselineEditing, setBaselineEditing] = useState(false);
+  const [baselineBusy, setBaselineBusy] = useState(false);
   const [adjustmentId, setAdjustmentId] = useState(() => "adj-" + crypto.randomUUID());
   const [adjustmentBusy, setAdjustmentBusy] = useState(false);
   const [adjustmentMessage, setAdjustmentMessage] = useState("");
@@ -58,6 +64,10 @@ export default function AuthenticatedDashboard({ getToken }) {
     const currentBalance = b ?? await request("/api/account/safe-to-spend/initialize", { method: "POST" });
     setPlanner(p);
     setBalance(currentBalance);
+    if (currentBalance) {
+      setBaselineAmount(String(currentBalance.allocation ?? 0));
+      setBaselineDate(String(currentBalance.startDate ?? today()).slice(0, 10));
+    }
     setHistory(Array.isArray(h) ? h : []);
     setTransactions(Array.isArray(t) ? t : []);
     setAdjustments(Array.isArray(a) ? a : []);
@@ -176,22 +186,45 @@ export default function AuthenticatedDashboard({ getToken }) {
     finally { setBusy(false); }
   };
 
+  const submitBaseline = async event => {
+    event.preventDefault();
+    const amount = Number(baselineAmount);
+    if (!/^-?\d+(\.\d{1,2})?$/.test(baselineAmount.trim()) ||
+        !Number.isFinite(amount) || Math.abs(amount) > 9999999999.99 ||
+        !baselineDate || baselineDate > today()) {
+      setAdjustmentMessage("Enter a valid baseline amount and a date that isn't in the future."); return;
+    }
+    if (!window.confirm("Set a new starting balance and tracking date? Your prior transactions and adjustments will be retained, but your available amount will be recalculated.")) return;
+    setBaselineBusy(true); setAdjustmentMessage("");
+    try {
+      await request("/api/account/safe-to-spend/baseline", {
+        method:"PUT", body:JSON.stringify({amount, startDate:baselineDate})
+      });
+      await refresh();
+      setBaselineEditing(false);
+      setAdjustmentMessage("Starting balance and transaction tracking date updated.");
+    } catch (e) { setAdjustmentMessage("Unable to update baseline: " + e.message); }
+    finally { setBaselineBusy(false); }
+  };
+
   const submitAdjustment = async event => {
     event.preventDefault();
-    if (!balance) { setAdjustmentMessage("Submit a paycheck before adjusting money."); return; }
+    if (!balance) { setAdjustmentMessage("Your account balance is still loading."); return; }
     const normalized = addAmount.trim();
     const amount = Number(normalized);
-    if (!/^-?\d+(\.\d{1,2})?$/.test(normalized) || !Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 9999999999.99) {
-      setAdjustmentMessage("Enter a nonzero amount with at most two decimals."); return;
+    if (!/^-?\d+(\.\d{1,2})?$/.test(normalized) || !Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 9999999999.99 || !adjustmentNote.trim() || adjustmentNote.trim().length > 200 || !adjustmentDate || adjustmentDate > today()) {
+      setAdjustmentMessage("Enter a nonzero amount, a short note, and a valid date."); return;
     }
     setAdjustmentBusy(true); setAdjustmentMessage("");
     try {
       await request("/api/account/safe-to-spend/adjustments", {
-        method:"POST", body:JSON.stringify({requestId:adjustmentId, amount})
+        method:"POST", body:JSON.stringify({requestId:adjustmentId, amount, note:adjustmentNote.trim(), occurredOn:adjustmentDate})
       });
       await refresh();
       setAdjustmentMessage((amount > 0 ? "+" : "−") + money(Math.abs(amount)) + " adjustment saved.");
       setAddAmount("");
+      setAdjustmentNote("");
+      setAdjustmentDate(today());
       setAdjustmentId("adj-" + crypto.randomUUID());
       setShowAddMoney(false);
     } catch (error) {
@@ -258,11 +291,23 @@ export default function AuthenticatedDashboard({ getToken }) {
 
       {page==="safe" && <>
         <div className="finance-heading"><p className="eyebrow">YOUR SPENDING</p><h2>Safe to Spend</h2><p>Know what you can spend today.</p></div>
+        <section className="finance-panel spendly-baseline">
+          <div className="finance-category-top"><div><span className="finance-kicker">MANUAL BALANCE</span><h3>Starting balance & tracking date</h3></div>
+            <button type="button" className="finance-add" onClick={() => setBaselineEditing(v => !v)}>{baselineEditing ? "Cancel" : "Edit"}</button>
+          </div>
+          <p>{balance ? money(balance.allocation) : "—"} starting allocation · Only Gmail purchases on or after {balance ? dateLabel(balance.startDate) : "your selected date"} count.</p>
+          {baselineEditing && <form className="spendly-baseline-form" onSubmit={submitBaseline}>
+            <label>Starting balance ($)<input type="number" step="0.01" value={baselineAmount} onChange={e => setBaselineAmount(e.target.value)} required /></label>
+            <label>Transaction tracking starts<input type="date" max={today()} value={baselineDate} onChange={e => setBaselineDate(e.target.value)} required /></label>
+            <p className="date-explanation">Saving creates a new baseline, not an adjustment. Past history is kept, and counted transactions are recalculated.</p>
+            <button className="save-button" type="submit" disabled={baselineBusy}>{baselineBusy ? "Saving…" : "Save balance & date"}</button>
+          </form>}
+        </section>
         <div className="safe-top-zone">
           <section className="safe-fintech-hero">
             <p className="label">AVAILABLE TO SPEND</p>
             <h2 className={"amount" + (balance ? (Number(balanceValue) > 0 ? " balance-positive" : Number(balanceValue) < 0 ? " balance-negative" : "") : "")}>{balance ? money(balanceValue) : "—"}</h2>
-            <p className="safe-subtitle">{balance ? money(balance.allocation)+" allocated − "+money(balance.countedSpending)+" spent" : "Submit a paycheck to begin tracking"}</p>
+            <p className="safe-subtitle">{balance ? money(balance.allocation)+" allocated − "+money(balance.countedSpending)+" spent" : "Preparing your balance…"}</p>
             {balance && <p className="safe-subtitle">Tracking since {dateLabel(balance.startDate)}</p>}
           </section>
           {balance && <div className="safe-quick-actions">
@@ -275,6 +320,9 @@ export default function AuthenticatedDashboard({ getToken }) {
                 <input type="number" step="0.01" placeholder="100.00 or -100.00" value={addAmount} onChange={e=>setAddAmount(e.target.value)} required />
               </div>
             </label>
+            <label>Note / reason<input type="text" maxLength="200" placeholder="Paycheck, Zelle for food, cash tip…" value={adjustmentNote} onChange={e=>setAdjustmentNote(e.target.value)} required /></label>
+            <label>When it happened<input type="date" max={today()} value={adjustmentDate} onChange={e=>setAdjustmentDate(e.target.value)} required /></label>
+            <p className="date-explanation">Use a positive amount to add money or a negative amount to remove it.</p>
             <p className="date-explanation">Current allocation: {money(balance.allocation)}. Your tracking start date stays the same.</p>
             <button className="save-button" type="submit" disabled={adjustmentBusy}>{adjustmentBusy?"Saving…":"Save adjustment"}</button>
             <button className="edit-button" type="button" disabled={adjustmentBusy} onClick={()=>{setShowAddMoney(false);setAdjustmentMessage("");}}>Cancel</button>
@@ -309,7 +357,7 @@ export default function AuthenticatedDashboard({ getToken }) {
           <h3>Adjustment history</h3>
           {adjustments.map(a=><div className="finance-category" key={a.id}>
             <div className="finance-category-top">
-              <span>{dateLabel(a.createdAt)}</span>
+              <span>{a.note || "Manual adjustment"} · {dateLabel(a.occurredOn || a.createdAt)} <small>Recorded {dateLabel(a.createdAt)}</small></span>
               <strong className={Number(a.amount)>=0?"positive-adjustment":"negative-adjustment"}>{Number(a.amount)>0?"+":""}{money(a.amount)}</strong>
             </div>
           </div>)}
