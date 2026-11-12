@@ -157,6 +157,7 @@ export default function SafeToSpendAccount({
       <section className="spendly-preview-modal" role="dialog" aria-modal="true" aria-labelledby="spendly-safe-modal-title" onClick={event=>event.stopPropagation()}>
         <div className="spendly-preview-modal-head"><h3 id="spendly-safe-modal-title">{panel==="budget"?"Edit Budget":"Add / Remove Money"}</h3>
           <button type="button" aria-label="Close" disabled={busy} onClick={()=>setPanel("")}>×</button></div>
+        {notice && <p role="alert" className="allocation-message">{notice}</p>}
         {panel==="budget"?<>
           <p>Set a starting balance and the date to begin counting Gmail transactions.</p>
           <form onSubmit={saveBaseline}>
